@@ -4,7 +4,10 @@ import { APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { EpisodesModule } from './episodes/episodes.module';
 import { RabbitMqModule } from './messaging/rabbitmq.module';
+import { NovelContextModule } from './novel-context/novel-context.module';
+import { NovelsModule } from './novels/novels.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StoryGenerationModule } from './story-generation/story-generation.module';
 import { UsersModule } from './users/users.module';
@@ -15,6 +18,9 @@ import { UsersModule } from './users/users.module';
     RabbitMqModule,
     PrismaModule,
     UsersModule,
+    NovelsModule,
+    EpisodesModule,
+    NovelContextModule,
     StoryGenerationModule,
   ],
   controllers: [AppController],

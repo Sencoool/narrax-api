@@ -4,11 +4,13 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 enum NovelStatus {
@@ -114,6 +116,8 @@ model Novel {
   tags        NovelTag[]
   media       MediaAsset[]
   generations StoryGenerationRequest[]
+  chunks      EpisodeChunk[]
+  context     NovelContext?
 }
 
 model Episode {
@@ -128,6 +132,7 @@ model Episode {
 
   novel       Novel    @relation(fields: [novelId], references: [id])
   bookmarks   Bookmark[]
+  chunks      EpisodeChunk[]
 
   @@unique([novelId, order])
 }
@@ -237,4 +242,39 @@ model StoryGenerationRequest {
   novel         Novel?            @relation(fields: [novelId], references: [id])
 
   @@index([status, createdAt])
+}
+
+/// RAG: เก็บ chunks ของแต่ละ episode พร้อม vector embedding สำหรับ semantic search
+model EpisodeChunk {
+  id         String                       @id @default(uuid())
+  episodeId  String
+  novelId    String
+  chunkIndex Int
+  content    String                       @db.Text
+  /// Gemini text-embedding-004 produces 768-dimensional vectors
+  embedding  Unsupported("vector(768)")?
+  createdAt  DateTime                     @default(now())
+
+  episode    Episode                      @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  novel      Novel                        @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@index([novelId])
+  @@index([episodeId])
+}
+
+/// บันทึก context ของนิยายสำหรับใช้เป็น system prompt ของ AI
+model NovelContext {
+  id            String   @id @default(uuid())
+  novelId       String   @unique
+  /// JSON array: [{ name, description, role }]
+  characters    String?  @db.Text
+  /// JSON: { setting, time, locations }
+  worldBuilding String?  @db.Text
+  /// โครงเรื่องหลัก / outline
+  plotOutline   String?  @db.Text
+  /// คำอธิบาย style การเขียน เช่น "บรรยายละเอียด, บทสนทนาสั้น"
+  writingStyle  String?  @db.Text
+  updatedAt     DateTime @updatedAt
+
+  novel         Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
 }
