@@ -35,7 +35,6 @@
     "@nestjs/websockets": "^11.1.19",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "@scalar/nestjs-api-reference": "^1.1.14",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^1.0.3",
     "argon2": "^0.44.0",

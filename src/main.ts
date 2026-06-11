@@ -1,4 +1,4 @@
-import { apiReference } from '@scalar/nestjs-api-reference';
+
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
@@ -28,18 +28,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   const openApiDoc = cleanupOpenApiDoc(document);
 
-  const httpAdapter = app.getHttpAdapter().getInstance() as Application;
-  httpAdapter.get('/docs-json', (_req: Request, res: Response) =>
-    res.json(openApiDoc),
-  );
-  httpAdapter.use(
-    '/docs',
-    apiReference({
-      url: '/docs-json',
-      title: 'Plot-weaver API',
-      layout: 'modern',
-    }),
-  );
+  SwaggerModule.setup('/docs', app, openApiDoc);
 
   await app.listen(process.env.PORT ?? 3000);
 }
