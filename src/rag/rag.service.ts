@@ -131,9 +131,7 @@ export class RagService {
 
     if (novelContext) {
       if (novelContext.characters) {
-        contextParts.push(
-          `## ตัวละครหลัก\n${novelContext.characters}`,
-        );
+        contextParts.push(`## ตัวละครหลัก\n${novelContext.characters}`);
       }
       if (novelContext.worldBuilding) {
         contextParts.push(
@@ -141,14 +139,10 @@ export class RagService {
         );
       }
       if (novelContext.plotOutline) {
-        contextParts.push(
-          `## โครงเรื่องหลัก\n${novelContext.plotOutline}`,
-        );
+        contextParts.push(`## โครงเรื่องหลัก\n${novelContext.plotOutline}`);
       }
       if (novelContext.writingStyle) {
-        contextParts.push(
-          `## สไตล์การเขียน\n${novelContext.writingStyle}`,
-        );
+        contextParts.push(`## สไตล์การเขียน\n${novelContext.writingStyle}`);
       }
     }
 

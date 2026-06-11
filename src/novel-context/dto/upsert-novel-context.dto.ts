@@ -4,7 +4,9 @@ import { z } from 'zod';
 const characterSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
-  role: z.enum(['protagonist', 'antagonist', 'supporting', 'other']).default('other'),
+  role: z
+    .enum(['protagonist', 'antagonist', 'supporting', 'other'])
+    .default('other'),
 });
 
 export const upsertNovelContextSchema = z

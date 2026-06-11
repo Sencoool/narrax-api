@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -15,7 +23,9 @@ export class UsersController {
   }
 
   @Post('login')
-  async login(@Body() { email, password }: { email: string; password: string }) {
+  async login(
+    @Body() { email, password }: { email: string; password: string },
+  ) {
     return this.usersService.login(email, password);
   }
 

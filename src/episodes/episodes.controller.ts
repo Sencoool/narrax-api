@@ -6,8 +6,15 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { EpisodesService } from './episodes.service';
@@ -18,15 +25,14 @@ export class EpisodesController {
   constructor(private readonly episodesService: EpisodesService) {}
 
   @Post('novels/:novelId/episodes')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'สร้างตอนใหม่',
     description: 'บันทึกตอนและ trigger RAG embedding อัตโนมัติ',
   })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
-  create(
-    @Param('novelId') novelId: string,
-    @Body() input: CreateEpisodeDto,
-  ) {
+  create(@Param('novelId') novelId: string, @Body() input: CreateEpisodeDto) {
     return this.episodesService.create(novelId, input);
   }
 
@@ -44,6 +50,8 @@ export class EpisodesController {
   }
 
   @Patch('episodes/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'แก้ไขตอน',
     description: 'ถ้าแก้ไข content จะ re-embed โดยอัตโนมัติ',
@@ -53,6 +61,8 @@ export class EpisodesController {
   }
 
   @Delete('episodes/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'ลบตอน (และ vector chunks อัตโนมัติ)' })
   remove(@Param('id') id: string) {
     return this.episodesService.remove(id);

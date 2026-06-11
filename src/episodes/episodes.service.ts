@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { RagService } from '../rag/rag.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
@@ -48,7 +44,9 @@ export class EpisodesService {
 
   async findAll(novelId: string) {
     // ตรวจว่า novel มีอยู่จริง
-    const novelExists = await this.prisma.novel.count({ where: { id: novelId } });
+    const novelExists = await this.prisma.novel.count({
+      where: { id: novelId },
+    });
     if (!novelExists) {
       throw new NotFoundException(`ไม่พบนิยาย id: ${novelId}`);
     }

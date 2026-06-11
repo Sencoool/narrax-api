@@ -1,7 +1,16 @@
-import { Body, Controller, MessageEvent, Post, Res, Sse } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import {
+  Body,
+  Controller,
+  MessageEvent,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import { Observable, Subject } from 'rxjs';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiService } from '../ai/ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService } from '../rag/rag.service';
@@ -30,7 +39,8 @@ export class StoryGenerationStreamController {
    * 5. บันทึก output ลง StoryGenerationRequest
    */
   @Post('stream')
-  @Sse()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'AI เขียนนิยายแบบ streaming (SSE)',
     description:

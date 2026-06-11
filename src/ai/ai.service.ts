@@ -1,48 +1,56 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  GoogleGenerativeAI,
-  GenerativeModel,
-} from '@google/generative-ai';
 
 @Injectable()
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
-  private genAI: GoogleGenerativeAI;
-  private textModel: GenerativeModel;
-  private embeddingModel: GenerativeModel;
 
-  // Models
-  private readonly TEXT_MODEL = 'gemini-2.0-flash';
-  private readonly EMBEDDING_MODEL = 'text-embedding-004';
+  private baseUrl: string;
+  private textModel: string;
+  private embeddingModel: string;
 
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not set in environment variables');
-    }
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.textModel = this.genAI.getGenerativeModel({ model: this.TEXT_MODEL });
-    this.embeddingModel = this.genAI.getGenerativeModel({
-      model: this.EMBEDDING_MODEL,
-    });
-    this.logger.log(`AI Service initialized with model: ${this.TEXT_MODEL}`);
+    this.baseUrl =
+      this.configService.get<string>('OLLAMA_BASE_URL') ||
+      'http://localhost:11434';
+    this.textModel =
+      this.configService.get<string>('OLLAMA_MODEL') || 'qwen2.5';
+    this.embeddingModel =
+      this.configService.get<string>('OLLAMA_EMBEDDING_MODEL') ||
+      'nomic-embed-text';
+
+    this.logger.log(
+      `Ollama AI Service initialized. Models -> Text: ${this.textModel}, Embedding: ${this.embeddingModel}`,
+    );
   }
 
   /**
    * สร้าง text embeddings สำหรับ RAG vector search
-   * ใช้ text-embedding-004 ของ Gemini (768 dimensions)
+   * ใช้ nomic-embed-text (768 dimensions)
    */
   async generateEmbedding(text: string): Promise<number[]> {
-    const response = await this.embeddingModel.embedContent(text);
+    try {
+      const response = await fetch(`${this.baseUrl}/api/embeddings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.embeddingModel,
+          prompt: text,
+        }),
+      });
 
-    if (!response.embedding?.values) {
-      throw new Error('Failed to generate embedding: no values returned');
+      if (!response.ok) {
+        throw new Error(`Ollama HTTP error! status: ${response.status}`);
+      }
+
+      const data = (await response.json()) as { embedding: number[] };
+      return data.embedding;
+    } catch (error) {
+      this.logger.error('Failed to generate embedding with Ollama', error);
+      throw error;
     }
-
-    return response.embedding.values;
   }
 
   /**
@@ -57,29 +65,59 @@ export class AiService implements OnModuleInit {
       maxOutputTokens?: number;
     },
   ): AsyncIterable<string> {
-    // สร้าง model instance พร้อม system instruction และ generation config
-    const model = this.genAI.getGenerativeModel({
-      model: this.TEXT_MODEL,
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        temperature: options?.temperature ?? 0.8,
-        maxOutputTokens: options?.maxOutputTokens ?? 2048,
-      },
+    const response = await fetch(`${this.baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: this.textModel,
+        system: systemPrompt,
+        prompt: userMessage,
+        stream: true,
+        options: {
+          temperature: options?.temperature ?? 0.8,
+          num_predict: options?.maxOutputTokens ?? 2048,
+        },
+      }),
     });
 
-    const result = await model.generateContentStream(userMessage);
+    if (!response.ok || !response.body) {
+      throw new Error(`Ollama generate error! status: ${response.status}`);
+    }
 
-    for await (const chunk of result.stream) {
-      const text = chunk.text();
-      if (text) {
-        yield text;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+
+        // เอาบรรทัดที่ยังไม่สมบูรณ์เก็บไว้ใน buffer
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+          try {
+            const parsed = JSON.parse(line) as { response?: string };
+            if (parsed.response) {
+              yield parsed.response;
+            }
+          } catch {
+            this.logger.warn(`Failed to parse Ollama stream chunk: ${line}`);
+          }
+        }
       }
+    } finally {
+      reader.releaseLock();
     }
   }
 
   /**
    * Generate ข้อความแบบรอจนเสร็จ (ไม่ streaming)
-   * ใช้สำหรับ auto-extract context หรืองานที่ไม่ต้องการ real-time
    */
   async generate(
     systemPrompt: string,
@@ -89,16 +127,26 @@ export class AiService implements OnModuleInit {
       maxOutputTokens?: number;
     },
   ): Promise<string> {
-    const model = this.genAI.getGenerativeModel({
-      model: this.TEXT_MODEL,
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        temperature: options?.temperature ?? 0.7,
-        maxOutputTokens: options?.maxOutputTokens ?? 2048,
-      },
+    const response = await fetch(`${this.baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: this.textModel,
+        system: systemPrompt,
+        prompt: userMessage,
+        stream: false,
+        options: {
+          temperature: options?.temperature ?? 0.7,
+          num_predict: options?.maxOutputTokens ?? 2048,
+        },
+      }),
     });
 
-    const result = await model.generateContent(userMessage);
-    return result.response.text();
+    if (!response.ok) {
+      throw new Error(`Ollama generate error! status: ${response.status}`);
+    }
+
+    const data = (await response.json()) as { response: string };
+    return data.response;
   }
 }

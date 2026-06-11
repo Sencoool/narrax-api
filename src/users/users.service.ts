@@ -2,16 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { randomBytes } from 'node:crypto';
 import * as argon2 from 'argon2';
-import { time } from 'node:console';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
-    const Hashpassword = await argon2.hash(createUserDto.password);
+    const Hashpassword = createUserDto.password
+      ? await argon2.hash(createUserDto.password)
+      : null;
 
     return this.prisma.user.create({
       data: {
@@ -19,6 +19,35 @@ export class UsersService {
         name: createUserDto.name ?? null,
         password: Hashpassword,
       },
+    });
+  }
+
+  findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
+  findByGoogleId(googleId: string) {
+    return this.prisma.user.findUnique({
+      where: { googleId },
+    });
+  }
+
+  createWithGoogle(email: string, name: string, googleId: string) {
+    return this.prisma.user.create({
+      data: {
+        email,
+        name,
+        googleId,
+      },
+    });
+  }
+
+  linkGoogleId(userId: string, googleId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { googleId },
     });
   }
 
@@ -56,6 +85,10 @@ export class UsersService {
     });
 
     if (!user) {
+      return { error: 'Invalid email or password' };
+    }
+
+    if (!user || !user.password) {
       return { error: 'Invalid email or password' };
     }
 

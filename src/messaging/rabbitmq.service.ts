@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AmqpConnectionManager, ChannelWrapper, connect } from 'amqp-connection-manager';
+import {
+  AmqpConnectionManager,
+  ChannelWrapper,
+  connect,
+} from 'amqp-connection-manager';
 import type { ConfirmChannel } from 'amqplib';
 
 export type StoryGenerationEvent = {
@@ -39,7 +43,9 @@ export class RabbitMqService implements OnModuleDestroy {
     await this.connection.close();
   }
 
-  async publishStoryGenerationEvent(event: StoryGenerationEvent): Promise<void> {
+  async publishStoryGenerationEvent(
+    event: StoryGenerationEvent,
+  ): Promise<void> {
     try {
       await this.channel.sendToQueue(
         this.queueName,
@@ -66,7 +72,9 @@ export class RabbitMqService implements OnModuleDestroy {
     const port = this.configService.get<string>('RABBITMQ_PORT') ?? '5672';
 
     if (!username || !password) {
-      throw new Error('RABBITMQ_DEFAULT_USER or RABBITMQ_DEFAULT_PASS is not set');
+      throw new Error(
+        'RABBITMQ_DEFAULT_USER or RABBITMQ_DEFAULT_PASS is not set',
+      );
     }
 
     return `amqp://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}`;

@@ -15,9 +15,11 @@ export class NovelContextService {
 
     return {
       novelId,
-      characters: context?.characters ? JSON.parse(context.characters) : [],
+      characters: context?.characters
+        ? (JSON.parse(context.characters) as unknown[])
+        : [],
       worldBuilding: context?.worldBuilding
-        ? JSON.parse(context.worldBuilding)
+        ? (JSON.parse(context.worldBuilding) as Record<string, unknown>)
         : null,
       plotOutline: context?.plotOutline ?? null,
       writingStyle: context?.writingStyle ?? null,
@@ -51,9 +53,11 @@ export class NovelContextService {
 
     return {
       novelId,
-      characters: context.characters ? JSON.parse(context.characters) : [],
+      characters: context.characters
+        ? (JSON.parse(context.characters) as unknown[])
+        : [],
       worldBuilding: context.worldBuilding
-        ? JSON.parse(context.worldBuilding)
+        ? (JSON.parse(context.worldBuilding) as Record<string, unknown>)
         : null,
       plotOutline: context.plotOutline ?? null,
       writingStyle: context.writingStyle ?? null,

@@ -1,5 +1,11 @@
-import { Body, Controller, Get, Param, Put } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpsertNovelContextDto } from './dto/upsert-novel-context.dto';
 import { NovelContextService } from './novel-context.service';
 
@@ -19,6 +25,8 @@ export class NovelContextController {
   }
 
   @Put()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'อัปเดต context ของนิยาย',
     description:

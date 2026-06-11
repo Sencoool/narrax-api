@@ -4,7 +4,14 @@ import { z } from 'zod';
 export const findStoryGenerationSchema = z
   .object({
     status: z
-      .enum(['pending', 'queued', 'processing', 'completed', 'failed', 'canceled'])
+      .enum([
+        'pending',
+        'queued',
+        'processing',
+        'completed',
+        'failed',
+        'canceled',
+      ])
       .optional(),
   })
   .meta({ id: 'FindStoryGeneration' });
