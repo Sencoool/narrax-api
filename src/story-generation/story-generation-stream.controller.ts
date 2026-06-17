@@ -23,7 +23,7 @@ export class StoryGenerationStreamController {
     private readonly aiService: AiService,
     private readonly ragService: RagService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   /**
    * SSE endpoint สำหรับ AI เขียนนิยายแบบ real-time streaming

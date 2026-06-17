@@ -6,14 +6,20 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
+  BadRequestException
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
@@ -22,7 +28,7 @@ import { EpisodesService } from './episodes.service';
 @ApiTags('episodes')
 @Controller()
 export class EpisodesController {
-  constructor(private readonly episodesService: EpisodesService) {}
+  constructor(private readonly episodesService: EpisodesService) { }
 
   @Post('novels/:novelId/episodes')
   @UseGuards(JwtAuthGuard)
@@ -34,6 +40,44 @@ export class EpisodesController {
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   create(@Param('novelId') novelId: string, @Body() input: CreateEpisodeDto) {
     return this.episodesService.create(novelId, input);
+  }
+
+  @Post('novels/:novelId/episodes/upload-content')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        title: {
+          type: 'string'
+        },
+        order: {
+          type: 'number'
+        }
+      },
+      required: ['file']
+    },
+  })
+  @ApiOperation({
+    summary: 'อัปโหลดไฟล์เพื่อเพิ่มเนื้อหานิยาย',
+    description: 'อัปโหลดไฟล์นิยายรายตอน แล้วระบบจะทำการตัดเนื้อหาเป็นตอนย่อยและทำการเพิ่มเนื้อหาเข้าสู่ Vector Database โดยอัตโนมัติ'
+  })
+  async uploadContent(
+    @Param('novelId') novelId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() { title, order }: { title: string, order: number }
+  ) {
+    if (!file) {
+      throw new BadRequestException('กรุณาแนบไฟล์เนื้อหา');
+    }
+    return this.episodesService.uploadContent(novelId, file, title, order);
   }
 
   @Get('novels/:novelId/episodes')

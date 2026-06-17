@@ -11,7 +11,7 @@ export class EpisodesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ragService: RagService,
-  ) {}
+  ) { }
 
   async create(novelId: string, input: CreateEpisodeDto) {
     // คำนวณ order ถ้าไม่ได้ระบุ → ต่อท้ายตอนสุดท้าย
@@ -42,8 +42,34 @@ export class EpisodesService {
     return episode;
   }
 
+  async uploadContent(novelId: string, file: Express.Multer.File, title: string, order: number) {
+    const text = file.buffer.toString('utf-8');
+    let targetOrder = order;
+    if (!targetOrder) {
+      const lastEpisode = await this.prisma.episode.findFirst({
+        where: { novelId },
+        orderBy: { order: 'desc' },
+        select: { order: true },
+      });
+      targetOrder = (lastEpisode?.order ?? 0) + 1;
+    }
+
+    const episode = await this.prisma.episode.create({
+      data: {
+        novelId,
+        title: title || `ตอนที่ ${targetOrder}`,
+        content: text,
+        order: targetOrder,
+        isPublished: false,
+      },
+    });
+
+    this.triggerEmbedding(episode.id, episode.title);
+
+    return episode;
+  }
+
   async findAll(novelId: string) {
-    // ตรวจว่า novel มีอยู่จริง
     const novelExists = await this.prisma.novel.count({
       where: { id: novelId },
     });
