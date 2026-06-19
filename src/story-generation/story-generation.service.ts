@@ -17,7 +17,6 @@ export class StoryGenerationService {
       data: {
         novelId: input.novelId ?? null,
         prompt: input.prompt,
-        mode: input.mode,
         status: 'pending',
         provider: input.provider,
         model: input.model ?? null,

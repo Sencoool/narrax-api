@@ -7,10 +7,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateNovelDto } from './dto/create-novel.dto';
 import { FindNovelsDto } from './dto/find-novels.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
+import { UpsertNovelContextDto } from './dto/upsert-novel-context.dto';
+import { NovelContextService } from './novel-context.service';
 
 @Injectable()
 export class NovelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly novelContext: NovelContextService,
+  ) {}
 
   async create(authorId: string, input: CreateNovelDto) {
     const { tags, ...novelData } = input;
@@ -112,6 +117,18 @@ export class NovelsService {
     await this.prisma.novel.delete({ where: { id } });
     return { message: 'ลบนิยายเรียบร้อยแล้ว' };
   }
+
+  // --- Context delegation ---
+
+  findContext(novelId: string) {
+    return this.novelContext.findOne(novelId);
+  }
+
+  upsertContext(novelId: string, input: UpsertNovelContextDto) {
+    return this.novelContext.upsert(novelId, input);
+  }
+
+  // --- Private helpers ---
 
   private async assertOwnership(novelId: string, authorId: string) {
     const novel = await this.prisma.novel.findUnique({

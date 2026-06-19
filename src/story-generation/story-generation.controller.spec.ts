@@ -34,13 +34,11 @@ describe('StoryGenerationController', () => {
 
     const result = await controller.create({
       prompt: 'A calm sunrise.',
-      mode: 'autopilot',
       provider: 'gemini',
     });
 
     expect(serviceMock.create).toHaveBeenCalledWith({
       prompt: 'A calm sunrise.',
-      mode: 'autopilot',
       provider: 'gemini',
     });
     expect(result).toEqual({ id: 'req-1' });

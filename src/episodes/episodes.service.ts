@@ -3,6 +3,8 @@ import { RagService } from '../rag/rag.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
+import { FileParserService } from './file-parser.service';
+
 
 @Injectable()
 export class EpisodesService {
@@ -11,6 +13,7 @@ export class EpisodesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ragService: RagService,
+    private readonly fileParserService: FileParserService,
   ) { }
 
   async create(novelId: string, input: CreateEpisodeDto) {
@@ -43,7 +46,9 @@ export class EpisodesService {
   }
 
   async uploadContent(novelId: string, file: Express.Multer.File, title: string, order: number) {
-    const text = file.buffer.toString('utf-8');
+    // Extract text using dedicated parser (throws 415 on bad file type / empty file)
+    const text = this.fileParserService.extractText(file);
+
     let targetOrder = order;
     if (!targetOrder) {
       const lastEpisode = await this.prisma.episode.findFirst({
@@ -57,13 +62,14 @@ export class EpisodesService {
     const episode = await this.prisma.episode.create({
       data: {
         novelId,
-        title: title || `ตอนที่ ${targetOrder}`,
+        title: title?.trim() || `ตอนที่ ${targetOrder}`,
         content: text,
         order: targetOrder,
         isPublished: false,
       },
     });
 
+    // RAG embedding — async fire-and-forget so upload returns immediately
     this.triggerEmbedding(episode.id, episode.title);
 
     return episode;

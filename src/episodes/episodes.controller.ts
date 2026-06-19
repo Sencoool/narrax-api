@@ -17,6 +17,7 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiParam,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -54,12 +55,15 @@ export class EpisodesController {
         file: {
           type: 'string',
           format: 'binary',
+          description: 'ไฟล์นิยาย (.txt เท่านั้น, สูงสุด 5MB)',
         },
         title: {
-          type: 'string'
+          type: 'string',
+          description: 'ชื่อตอน (ถ้าไม่ระบุ AI จะแนะนำชื่อให้อัตโนมัติ)',
         },
         order: {
-          type: 'number'
+          type: 'number',
+          description: 'ลำดับตอน (ถ้าไม่ระบุจะต่อท้ายตอนสุดท้าย)',
         }
       },
       required: ['file']
@@ -67,7 +71,35 @@ export class EpisodesController {
   })
   @ApiOperation({
     summary: 'อัปโหลดไฟล์เพื่อเพิ่มเนื้อหานิยาย',
-    description: 'อัปโหลดไฟล์นิยายรายตอน แล้วระบบจะทำการตัดเนื้อหาเป็นตอนย่อยและทำการเพิ่มเนื้อหาเข้าสู่ Vector Database โดยอัตโนมัติ'
+    description: `อัปโหลดไฟล์นิยายรายตอน (.txt) ระบบจะดำเนินการต่อไปนี้แบบ async:
+1. บันทึกเนื้อหาเป็น Episode และส่ง HTTP 201 กลับทันที
+2. ทำ RAG embedding เข้า Vector Database สำหรับ semantic search
+3. ให้ AI (Ollama) วิเคราะห์เนื้อหาและสร้าง summary + ชื่อตอน
+
+ติดตามสถานะ AI enrichment ผ่าน field \`aiEnrichmentStatus\` ใน GET /episodes/:id
+- pending → processing → completed | failed
+เมื่อ completed จะมี field \`summary\` และ \`aiEnrichedAt\` ปรากฏในข้อมูล
+
+**หมายเหตุ:** การสร้างเนื้อเรื่องต่อ (AI generation) ต้องกดปุ่มบน frontend แยกต่างหาก
+ผ่าน POST /story-generations/stream`,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Episode ถูกบันทึกแล้ว — AI enrichment กำลังทำงานใน background',
+    schema: {
+      example: {
+        id: 'uuid',
+        novelId: 'uuid',
+        title: 'ตอนที่ 1',
+        order: 1,
+        isPublished: false,
+        aiEnrichmentStatus: 'pending',
+        summary: null,
+        aiEnrichedAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
   })
   async uploadContent(
     @Param('novelId') novelId: string,
@@ -79,6 +111,7 @@ export class EpisodesController {
     }
     return this.episodesService.uploadContent(novelId, file, title, order);
   }
+
 
   @Get('novels/:novelId/episodes')
   @ApiOperation({ summary: 'รายการตอนของนิยาย' })

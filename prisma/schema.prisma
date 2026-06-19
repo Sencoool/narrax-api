@@ -35,10 +35,6 @@ enum RoleName {
   reader
 }
 
-enum GenerationMode {
-  co_author
-  autopilot
-}
 
 enum GenerationStatus {
   pending
@@ -48,6 +44,7 @@ enum GenerationStatus {
   failed
   canceled
 }
+
 
 model User {
   id        String      @id @default(uuid())
@@ -131,9 +128,11 @@ model Episode {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  novel       Novel    @relation(fields: [novelId], references: [id])
-  bookmarks   Bookmark[]
-  chunks      EpisodeChunk[]
+  novel              Novel                   @relation(fields: [novelId], references: [id])
+  bookmarks          Bookmark[]
+  chunks             EpisodeChunk[]
+  /// Generation requests that used this episode as their source/seed content
+  generationRequests StoryGenerationRequest[]
 
   @@unique([novelId, order])
 }
@@ -225,24 +224,27 @@ model MediaAsset {
 }
 
 model StoryGenerationRequest {
-  id            String            @id @default(uuid())
-  novelId       String?
-  prompt        String            @db.Text
-  mode          GenerationMode
-  status        GenerationStatus  @default(pending)
-  provider      String
-  model         String?
-  temperature   Float?
-  maxTokens     Int?
-  output        String?           @db.Text
-  error         String?           @db.Text
-  externalJobId String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id              String            @id @default(uuid())
+  novelId         String?
+  /// The uploaded episode whose content was used as the seed/context for this generation
+  sourceEpisodeId String?
+  prompt          String            @db.Text
+  status          GenerationStatus  @default(pending)
+  provider        String
+  model           String?
+  temperature     Float?
+  maxTokens       Int?
+  output          String?           @db.Text
+  error           String?           @db.Text
+  externalJobId   String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  novel         Novel?            @relation(fields: [novelId], references: [id])
+  novel         Novel?   @relation(fields: [novelId], references: [id])
+  sourceEpisode Episode? @relation(fields: [sourceEpisodeId], references: [id])
 
   @@index([status, createdAt])
+  @@index([sourceEpisodeId])
 }
 
 /// RAG: เก็บ chunks ของแต่ละ episode พร้อม vector embedding สำหรับ semantic search

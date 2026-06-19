@@ -75,7 +75,7 @@ export class AiService implements OnModuleInit {
         stream: true,
         options: {
           temperature: options?.temperature ?? 0.8,
-          num_predict: options?.maxOutputTokens ?? 2048,
+          num_predict: options?.maxOutputTokens ?? 4000,
         },
       }),
     });

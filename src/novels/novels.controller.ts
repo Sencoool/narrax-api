@@ -6,15 +6,17 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateNovelDto } from './dto/create-novel.dto';
 import { FindNovelsDto } from './dto/find-novels.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
+import { UpsertNovelContextDto } from './dto/upsert-novel-context.dto';
 import { NovelsService } from './novels.service';
 
 @ApiTags('novels')
@@ -60,5 +62,33 @@ export class NovelsController {
   @ApiOperation({ summary: 'ลบนิยาย' })
   remove(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     return this.novelsService.remove(id, user.id);
+  }
+
+  // --- Context ---
+
+  @Get(':novelId/context')
+  @ApiOperation({
+    summary: 'ดู context ของนิยาย',
+    description: 'ตัวละคร, โลก, โครงเรื่อง, สไตล์ที่ AI จะใช้เป็น memory',
+  })
+  @ApiParam({ name: 'novelId', description: 'Novel UUID' })
+  findContext(@Param('novelId') novelId: string) {
+    return this.novelsService.findContext(novelId);
+  }
+
+  @Put(':novelId/context')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'อัปเดต context ของนิยาย',
+    description:
+      'กำหนดตัวละคร, ฉาก, โครงเรื่อง และสไตล์ให้ AI จำและใช้เป็น context เมื่อเขียน',
+  })
+  @ApiParam({ name: 'novelId', description: 'Novel UUID' })
+  upsertContext(
+    @Param('novelId') novelId: string,
+    @Body() input: UpsertNovelContextDto,
+  ) {
+    return this.novelsService.upsertContext(novelId, input);
   }
 }

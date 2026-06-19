@@ -51,7 +51,6 @@ describe('StoryGenerationService', () => {
     const result = await service.create({
       novelId: 'novel-1',
       prompt: 'Write a short scene about a storm.',
-      mode: 'co_author',
       provider: 'gemini',
       model: 'gemini-2.0-flash',
       temperature: 0.7,
@@ -62,7 +61,6 @@ describe('StoryGenerationService', () => {
       data: {
         novelId: 'novel-1',
         prompt: 'Write a short scene about a storm.',
-        mode: 'co_author',
         status: 'pending',
         provider: 'gemini',
         model: 'gemini-2.0-flash',
