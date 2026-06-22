@@ -4,7 +4,7 @@ import { UpsertNovelContextDto } from './dto/upsert-novel-context.dto';
 
 @Injectable()
 export class NovelContextService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findOne(novelId: string) {
     await this.assertNovelExists(novelId);
@@ -18,9 +18,7 @@ export class NovelContextService {
       characters: context?.characters
         ? (JSON.parse(context.characters) as unknown[])
         : [],
-      worldBuilding: context?.worldBuilding
-        ? (JSON.parse(context.worldBuilding) as Record<string, unknown>)
-        : null,
+      worldBuilding: context?.worldBuilding ?? null,
       plotOutline: context?.plotOutline ?? null,
       writingStyle: context?.writingStyle ?? null,
       updatedAt: context?.updatedAt ?? null,
@@ -36,7 +34,7 @@ export class NovelContextService {
       data.characters = JSON.stringify(input.characters);
     }
     if (input.worldBuilding !== undefined) {
-      data.worldBuilding = JSON.stringify(input.worldBuilding);
+      data.worldBuilding = input.worldBuilding;
     }
     if (input.plotOutline !== undefined) {
       data.plotOutline = input.plotOutline;
@@ -56,9 +54,7 @@ export class NovelContextService {
       characters: context.characters
         ? (JSON.parse(context.characters) as unknown[])
         : [],
-      worldBuilding: context.worldBuilding
-        ? (JSON.parse(context.worldBuilding) as Record<string, unknown>)
-        : null,
+      worldBuilding: context.worldBuilding ?? null,
       plotOutline: context.plotOutline ?? null,
       writingStyle: context.writingStyle ?? null,
       updatedAt: context.updatedAt,

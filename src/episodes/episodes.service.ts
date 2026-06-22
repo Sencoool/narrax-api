@@ -32,7 +32,7 @@ export class EpisodesService {
       data: {
         novelId,
         title: input.title,
-        content: input.content,
+        content: "",
         order,
         isPublished: input.isPublished ?? false,
       },

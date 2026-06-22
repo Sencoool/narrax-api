@@ -41,7 +41,7 @@ export class StoryGenerationStreamController {
     private readonly aiService: AiService,
     private readonly ragService: RagService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   // ---------------------------------------------------------------------------
   // POST /story-generations/stream
@@ -74,11 +74,21 @@ export class StoryGenerationStreamController {
   streamGeneration(
     @Body() body: StreamGenerationDto,
     @Res() res: Response,
-  ): Observable<MessageEvent> {
+  ): void {
+    res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
 
     const subject = new Subject<MessageEvent>();
+
+    // Manually pipe subject to Express response
+    subject.subscribe({
+      next: (msg) => res.write(`data: ${msg.data}\n\n`),
+      error: () => res.end(),
+      complete: () => res.end(),
+    });
 
     // Clamp targetChars to the system ceiling
     const targetChars = Math.min(
@@ -91,13 +101,14 @@ export class StoryGenerationStreamController {
         ? this.runSingleShotPipeline(body, targetChars, subject)
         : this.runSegmentedPipeline(body, targetChars, subject);
 
-    pipeline.catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      subject.next({ data: JSON.stringify({ type: 'error', message }) });
-      subject.complete();
-    });
-
-    return subject.asObservable();
+    pipeline
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        subject.next({ data: JSON.stringify({ type: 'error', message }) });
+      })
+      .finally(() => {
+        subject.complete();
+      });
   }
 
   // ---------------------------------------------------------------------------
@@ -119,9 +130,9 @@ export class StoryGenerationStreamController {
       this.ragService.buildContext(novelId, userMessage),
       episodeId
         ? this.prisma.episode.findUniqueOrThrow({
-            where: { id: episodeId },
-            select: { id: true, title: true, content: true },
-          })
+          where: { id: episodeId },
+          select: { id: true, title: true, content: true },
+        })
         : Promise.resolve(null),
     ]);
 
@@ -175,8 +186,6 @@ export class StoryGenerationStreamController {
         data: { status: 'failed', error: message },
       });
       throw err;
-    } finally {
-      subject.complete();
     }
   }
 
@@ -201,9 +210,9 @@ export class StoryGenerationStreamController {
       this.ragService.buildContext(novelId, userMessage),
       episodeId
         ? this.prisma.episode.findUniqueOrThrow({
-            where: { id: episodeId },
-            select: { id: true, title: true, content: true },
-          })
+          where: { id: episodeId },
+          select: { id: true, title: true, content: true },
+        })
         : Promise.resolve(null),
     ]);
 
@@ -288,8 +297,6 @@ export class StoryGenerationStreamController {
         data: { status: 'failed', error: message },
       });
       throw err;
-    } finally {
-      subject.complete();
     }
   }
 
@@ -316,7 +323,7 @@ ${novel.summary ? `สรุปเรื่อง: ${novel.summary}` : ''}${cont
 
 ## คำแนะนำ
 - รักษาความต่อเนื่องของตัวละครและเนื้อเรื่องตาม context ที่ให้ไว้
-- ใช้ภาษาไทยที่ถูกต้องและสละสลวย
+- ใช้ภาษาไทยที่ถูกต้องและสละสลวยเท่านั้น ห้ามใช้ภาษาอื่นเด็ดขาด
 - บรรยายฉากและอารมณ์ให้ชัดเจน ละเอียด
 - ห้ามออกนอกเรื่องหรือเพิ่มตัวละครใหม่โดยไม่จำเป็น
 - ตอบเป็นเนื้อเรื่องโดยตรง ไม่ต้องอธิบายว่ากำลังทำอะไร`;
@@ -345,7 +352,7 @@ ${novel.summary ? `สรุปเรื่อง: ${novel.summary}` : ''}${cont
 ## คำสั่ง / แนวทางบท:
 ${userMessage}${seedSection}
 
-[เขียนเนื้อเรื่องส่วนแรก จบที่จุดสิ้นสุดประโยคหรือย่อหน้าที่เหมาะสม อย่าเขียนเกิน ${SEGMENT_CHARS + 300} ตัวอักษร]`;
+[เขียนเนื้อเรื่องส่วนแรกเป็นภาษาไทยเท่านั้น จบที่จุดสิ้นสุดประโยคหรือย่อหน้าที่เหมาะสม อย่าเขียนเกิน ${SEGMENT_CHARS + 300} ตัวอักษร]`;
     }
 
     return `เขียนเนื้อเรื่องส่วนที่ ${segment} จากทั้งหมด ${totalSegments} ส่วน ให้มีความยาวประมาณ ${SEGMENT_CHARS} ตัวอักษร
@@ -353,6 +360,6 @@ ${userMessage}${seedSection}
 ## เนื้อเรื่องที่เขียนไปแล้ว (ส่วนท้าย):
 ${prevTail}
 
-[เขียนต่อจากตรงนี้ รักษาน้ำเสียง ลีลา และความต่อเนื่องของเรื่อง อย่าทวนเนื้อหาที่ผ่านมา จบที่จุดสิ้นสุดประโยคหรือย่อหน้าที่เหมาะสม]`;
+[เขียนต่อจากตรงนี้เป็นภาษาไทยเท่านั้น รักษาน้ำเสียง ลีลา และความต่อเนื่องของเรื่อง อย่าทวนเนื้อหาที่ผ่านมา จบที่จุดสิ้นสุดประโยคหรือย่อหน้าที่เหมาะสม]`;
   }
 }

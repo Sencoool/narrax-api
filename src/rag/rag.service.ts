@@ -76,9 +76,9 @@ export class RagService {
       await this.prisma.$executeRaw`
         INSERT INTO "EpisodeChunk" (id, "episodeId", "novelId", "chunkIndex", content, embedding, "createdAt")
         VALUES (
-          gen_random_uuid(),
-          ${episodeId}::uuid,
-          ${episode.novelId}::uuid,
+          gen_random_uuid()::text,
+          ${episodeId},
+          ${episode.novelId},
           ${i},
           ${chunkText},
           ${`[${embedding.join(',')}]`}::vector(768),
@@ -108,7 +108,7 @@ export class RagService {
     const results = await this.prisma.$queryRaw<{ content: string }[]>`
       SELECT content
       FROM "EpisodeChunk"
-      WHERE "novelId" = ${novelId}::uuid
+      WHERE "novelId" = ${novelId}
         AND embedding IS NOT NULL
       ORDER BY embedding <=> ${embeddingStr}::vector(768)
       LIMIT ${topK}

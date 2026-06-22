@@ -12,14 +12,7 @@ const characterSchema = z.object({
 export const upsertNovelContextSchema = z
   .object({
     characters: z.array(characterSchema).optional(),
-    worldBuilding: z
-      .object({
-        setting: z.string().optional(),
-        time: z.string().optional(),
-        locations: z.array(z.string()).optional(),
-        rules: z.string().optional(),
-      })
-      .optional(),
+    worldBuilding: z.string().max(1000).optional(),
     plotOutline: z.string().max(5000).optional(),
     writingStyle: z.string().max(1000).optional(),
   })
@@ -27,4 +20,4 @@ export const upsertNovelContextSchema = z
 
 export class UpsertNovelContextDto extends createZodDto(
   upsertNovelContextSchema,
-) {}
+) { }

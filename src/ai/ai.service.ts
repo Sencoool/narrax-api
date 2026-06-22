@@ -9,14 +9,14 @@ export class AiService implements OnModuleInit {
   private textModel: string;
   private embeddingModel: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   onModuleInit() {
     this.baseUrl =
       this.configService.get<string>('OLLAMA_BASE_URL') ||
       'http://localhost:11434';
     this.textModel =
-      this.configService.get<string>('OLLAMA_MODEL') || 'qwen2.5';
+      this.configService.get<string>('OLLAMA_MODEL') || 'hf.co/mradermacher/llama-3-typhoon-v1.5-8b-instruct-GGUF:Q4_K_M';
     this.embeddingModel =
       this.configService.get<string>('OLLAMA_EMBEDDING_MODEL') ||
       'nomic-embed-text';

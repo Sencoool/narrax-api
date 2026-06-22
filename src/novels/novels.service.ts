@@ -15,7 +15,7 @@ export class NovelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly novelContext: NovelContextService,
-  ) {}
+  ) { }
 
   async create(authorId: string, input: CreateNovelDto) {
     const { tags, ...novelData } = input;
@@ -24,19 +24,18 @@ export class NovelsService {
       data: {
         ...novelData,
         authorId,
-        // สร้าง NovelContext เปล่าๆ ไว้รองรับ AI memory ตั้งแต่ต้น
         context: { create: {} },
         tags: tags?.length
           ? {
-              create: tags.map((tagName) => ({
-                tag: {
-                  connectOrCreate: {
-                    where: { name: tagName },
-                    create: { name: tagName },
-                  },
+            create: tags.map((tagName) => ({
+              tag: {
+                connectOrCreate: {
+                  where: { name: tagName },
+                  create: { name: tagName },
                 },
-              })),
-            }
+              },
+            })),
+          }
           : undefined,
       },
       include: {
@@ -100,10 +99,24 @@ export class NovelsService {
 
   async update(id: string, authorId: string, input: UpdateNovelDto) {
     await this.assertOwnership(id, authorId);
-
     return this.prisma.novel.update({
       where: { id },
-      data: input,
+      data: {
+        ...input,
+        tags: input.tags?.length
+          ? {
+            deleteMany: {},
+            create: input.tags.map((tagName) => ({
+              tag: {
+                connectOrCreate: {
+                  where: { name: tagName },
+                  create: { name: tagName },
+                },
+              },
+            })),
+          }
+          : undefined,
+      },
       include: {
         tags: { include: { tag: true } },
         _count: { select: { episodes: true } },
