@@ -36,7 +36,7 @@ export class EpisodesController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'สร้างตอนใหม่',
-    description: 'บันทึกตอนและ trigger RAG embedding อัตโนมัติ',
+    description: 'บันทึกตอนและ trigger RAG embedding + AI summary อัตโนมัติ',
   })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   create(@Param('novelId') novelId: string, @Body() input: CreateEpisodeDto) {
@@ -74,18 +74,16 @@ export class EpisodesController {
     description: `อัปโหลดไฟล์นิยายรายตอน (.txt) ระบบจะดำเนินการต่อไปนี้แบบ async:
 1. บันทึกเนื้อหาเป็น Episode และส่ง HTTP 201 กลับทันที
 2. ทำ RAG embedding เข้า Vector Database สำหรับ semantic search
-3. ให้ AI (Ollama) วิเคราะห์เนื้อหาและสร้าง summary + ชื่อตอน
+3. ให้ AI สร้าง episodeSummary อัตโนมัติ (สรุปเนื้อหาตอน)
 
-ติดตามสถานะ AI enrichment ผ่าน field \`aiEnrichmentStatus\` ใน GET /episodes/:id
-- pending → processing → completed | failed
-เมื่อ completed จะมี field \`summary\` และ \`aiEnrichedAt\` ปรากฏในข้อมูล
+ติดตามผลได้จาก GET /episodes/:id — field \`episodeSummary\` จะมีค่าเมื่อ AI ประมวลผลเสร็จ
 
 **หมายเหตุ:** การสร้างเนื้อเรื่องต่อ (AI generation) ต้องกดปุ่มบน frontend แยกต่างหาก
 ผ่าน POST /story-generations/stream`,
   })
   @ApiResponse({
     status: 201,
-    description: 'Episode ถูกบันทึกแล้ว — AI enrichment กำลังทำงานใน background',
+    description: 'Episode ถูกบันทึกแล้ว — AI summary + embedding กำลังทำงานใน background',
     schema: {
       example: {
         id: 'uuid',
@@ -93,9 +91,7 @@ export class EpisodesController {
         title: 'ตอนที่ 1',
         order: 1,
         isPublished: false,
-        aiEnrichmentStatus: 'pending',
-        summary: null,
-        aiEnrichedAt: null,
+        episodeSummary: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       },
@@ -121,7 +117,7 @@ export class EpisodesController {
   }
 
   @Get('episodes/:id')
-  @ApiOperation({ summary: 'ดูรายละเอียดตอน' })
+  @ApiOperation({ summary: 'ดูรายละเอียดตอน (รวม episodeSummary)' })
   findOne(@Param('id') id: string) {
     return this.episodesService.findOne(id);
   }
@@ -131,10 +127,31 @@ export class EpisodesController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'แก้ไขตอน',
-    description: 'ถ้าแก้ไข content จะ re-embed โดยอัตโนมัติ',
+    description: 'ถ้าแก้ไข content จะ re-embed และ re-generate summary โดยอัตโนมัติ',
   })
   update(@Param('id') id: string, @Body() input: UpdateEpisodeDto) {
     return this.episodesService.update(id, input);
+  }
+
+  @Post('episodes/:id/generate-summary')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'สร้าง / สร้างใหม่ AI summary สำหรับตอน',
+    description: `เรียกให้ AI สรุปเนื้อหาตอนและบันทึกลง field \`episodeSummary\`.
+ใช้เมื่อ:
+- ยังไม่มี summary (null)
+- ต้องการ re-generate summary ใหม่
+
+⚠️ การเรียก endpoint นี้จะรอจนกว่า AI จะตอบกลับ (synchronous) อาจใช้เวลาสักครู่`,
+  })
+  @ApiParam({ name: 'id', description: 'Episode UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Episode ที่มี episodeSummary ที่ถูก generate ใหม่',
+  })
+  generateSummary(@Param('id') id: string) {
+    return this.episodesService.generateSummary(id);
   }
 
   @Delete('episodes/:id')

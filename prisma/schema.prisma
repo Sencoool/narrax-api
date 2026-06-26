@@ -122,8 +122,9 @@ model Episode {
   id          String   @id @default(uuid())
   novelId     String
   title       String
-  content     String   @db.Text
-  order       Int
+  content        String   @db.Text
+  episodeSummary String?  @db.Text
+  order          Int
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
