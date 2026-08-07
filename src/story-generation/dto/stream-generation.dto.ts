@@ -16,6 +16,11 @@ export const streamGenerationSchema = z
       .min(1, 'กรุณาระบุ prompt')
       .max(3000, 'prompt ยาวเกินไป'),
     /**
+     * เนื้อหาปัจจุบันในตัว editor (HTML) — ส่งมาจาก frontend
+     * ใช้เป็น context "เนื้อเรื่องที่เขียนไปแล้ว" เพื่อให้ AI ต่อเรื่องได้ถูกต้อง
+     */
+    currentContent: z.string().optional(),
+    /**
      * จำนวนตัวอักษรไทยที่ต้องการ (ผู้ใช้กำหนดความยาว)
      * - ไม่ระบุ → ระบบใช้ค่าเริ่มต้น 2,500 ตัวอักษร
      * - ≤ 2,500 → single-shot pipeline (เร็ว)

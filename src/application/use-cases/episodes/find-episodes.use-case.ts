@@ -1,0 +1,18 @@
+import { Injectable, Inject } from '@nestjs/common';
+import {
+  IEpisodeRepository,
+  EPISODE_REPOSITORY,
+  EpisodeSummaryItem,
+} from '../../../domain/repositories/episode.repository.interface.js';
+
+@Injectable()
+export class FindEpisodesUseCase {
+  constructor(
+    @Inject(EPISODE_REPOSITORY)
+    private readonly episodeRepo: IEpisodeRepository,
+  ) {}
+
+  execute(novelId: string): Promise<EpisodeSummaryItem[]> {
+    return this.episodeRepo.findByNovelId(novelId);
+  }
+}

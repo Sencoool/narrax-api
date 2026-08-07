@@ -4,9 +4,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import type { Application, Request, Response } from 'express';
 import { AppModule } from './app.module';
+import { PlotWeaverLogger } from './logger/plot-weaver-logger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new PlotWeaverLogger(['log', 'warn', 'error', 'debug', 'verbose']);
+  const app = await NestFactory.create(AppModule, { logger });
+  app.useLogger(logger);
 
   // CORS สำหรับ frontend
   app.enableCors({

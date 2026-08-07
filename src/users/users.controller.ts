@@ -1,33 +1,22 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
-  Post,
+  Body,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersService } from './users.service';
 
 @ApiTags('users')
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }
-
-  @Post('login')
-  async login(
-    @Body() { email, password }: { email: string; password: string },
-  ) {
-    return this.usersService.login(email, password);
-  }
 
   @Get()
   findAll() {

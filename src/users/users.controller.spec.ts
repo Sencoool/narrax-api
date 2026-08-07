@@ -1,10 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 const serviceMock = {
-  create: jest.fn(),
-  login: jest.fn(),
   findAll: jest.fn(),
   findOne: jest.fn(),
   update: jest.fn(),
@@ -23,45 +22,17 @@ describe('UsersController', () => {
           useValue: serviceMock,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<UsersController>(UsersController);
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
-  });
-
-  it('creates a user', async () => {
-    serviceMock.create.mockResolvedValue({ id: 'user-1' });
-
-    const result = await controller.create({
-      email: 'test@example.com',
-      name: 'Test User',
-      password: 'secret123',
-    });
-
-    expect(serviceMock.create).toHaveBeenCalledWith({
-      email: 'test@example.com',
-      name: 'Test User',
-      password: 'secret123',
-    });
-    expect(result).toEqual({ id: 'user-1' });
-  });
-
-  it('logs in a user', async () => {
-    serviceMock.login.mockResolvedValue({ user: { id: 'user-1' } });
-
-    const result = await controller.login({
-      email: 'test@example.com',
-      password: 'secret123',
-    });
-
-    expect(serviceMock.login).toHaveBeenCalledWith(
-      'test@example.com',
-      'secret123',
-    );
-    expect(result).toEqual({ user: { id: 'user-1' } });
   });
 
   it('lists users', async () => {
