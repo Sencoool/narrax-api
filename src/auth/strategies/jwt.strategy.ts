@@ -2,13 +2,13 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { UsersService } from '../../users/users.service';
+import { FindOneUserUseCase } from '../../application/use-cases/users/find-one-user.use-case';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
-    private readonly usersService: UsersService,
+    private readonly findOneUserUseCase: FindOneUserUseCase,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -18,11 +18,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: { sub: string; email: string }) {
-    const user = await this.usersService.findOne(payload.sub);
-    if (!user) {
+    try {
+      const user = await this.findOneUserUseCase.execute(payload.sub);
+      // Return the safe shape — this becomes req.user on all guarded routes
+      return { id: user.id, email: user.email, name: user.name };
+    } catch {
       throw new UnauthorizedException();
     }
-    // ส่งกลับข้อมูลที่จะไปอยู่ใน req.user
-    return { id: user.id, email: user.email, name: user.name };
   }
 }

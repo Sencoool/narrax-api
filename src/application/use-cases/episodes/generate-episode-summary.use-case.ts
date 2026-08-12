@@ -1,9 +1,8 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import {
-  IEpisodeRepository,
-  EPISODE_REPOSITORY,
-} from '../../../domain/repositories/episode.repository.interface.js';
-import { IAiProvider, AI_PROVIDER } from '../../ports/ai-provider.port.js';
+import type { IEpisodeRepository } from '../../../domain/repositories/episode.repository.interface.js';
+import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
+import type { IAiProvider } from '../../ports/ai-provider.port.js';
+import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
 import { EpisodeEntity } from '../../../domain/entities/episode.entity.js';
 import {
   DomainNotFoundError,

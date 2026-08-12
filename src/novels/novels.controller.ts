@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -17,31 +19,54 @@ import { CreateNovelDto } from './dto/create-novel.dto';
 import { FindNovelsDto } from './dto/find-novels.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
 import { UpsertNovelContextDto } from './dto/upsert-novel-context.dto';
-import { NovelsService } from './novels.service';
+import { CreateNovelUseCase } from '../application/use-cases/novels/create-novel.use-case';
+import { FindNovelsUseCase } from '../application/use-cases/novels/find-novels.use-case';
+import { FindOneNovelUseCase } from '../application/use-cases/novels/find-one-novel.use-case';
+import { UpdateNovelUseCase } from '../application/use-cases/novels/update-novel.use-case';
+import { DeleteNovelUseCase } from '../application/use-cases/novels/delete-novel.use-case';
+import { FindNovelContextUseCase } from '../application/use-cases/novels/find-novel-context.use-case';
+import { UpsertNovelContextUseCase } from '../application/use-cases/novels/upsert-novel-context.use-case';
 
 @ApiTags('novels')
 @Controller('novels')
 export class NovelsController {
-  constructor(private readonly novelsService: NovelsService) {}
+  constructor(
+    private readonly createNovelUseCase: CreateNovelUseCase,
+    private readonly findNovelsUseCase: FindNovelsUseCase,
+    private readonly findOneNovelUseCase: FindOneNovelUseCase,
+    private readonly updateNovelUseCase: UpdateNovelUseCase,
+    private readonly deleteNovelUseCase: DeleteNovelUseCase,
+    private readonly findNovelContextUseCase: FindNovelContextUseCase,
+    private readonly upsertNovelContextUseCase: UpsertNovelContextUseCase,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'สร้างนิยายใหม่' })
   create(@CurrentUser() user: { id: string }, @Body() input: CreateNovelDto) {
-    return this.novelsService.create(user.id, input);
+    return this.createNovelUseCase.execute(user.id, {
+      title: input.title,
+      summary: input.summary ?? null,
+      tags: input.tags,
+    });
   }
 
   @Get()
   @ApiOperation({ summary: 'รายการนิยายทั้งหมด (paginated)' })
   findAll(@Query() query: FindNovelsDto) {
-    return this.novelsService.findAll(query);
+    return this.findNovelsUseCase.execute({
+      status: query.status as any,
+      authorId: query.authorId,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'ดูรายละเอียดนิยาย' })
   findOne(@Param('id') id: string) {
-    return this.novelsService.findOne(id);
+    return this.findOneNovelUseCase.execute(id);
   }
 
   @Patch(':id')
@@ -53,15 +78,21 @@ export class NovelsController {
     @CurrentUser() user: { id: string },
     @Body() input: UpdateNovelDto,
   ) {
-    return this.novelsService.update(id, user.id, input);
+    return this.updateNovelUseCase.execute(id, user.id, {
+      title: input.title,
+      summary: input.summary,
+      status: input.status as any,
+      tags: input.tags,
+    });
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'ลบนิยาย' })
-  remove(@Param('id') id: string, @CurrentUser() user: { id: string }) {
-    return this.novelsService.remove(id, user.id);
+  async remove(@Param('id') id: string, @CurrentUser() user: { id: string }) {
+    await this.deleteNovelUseCase.execute(id, user.id);
   }
 
   // --- Context ---
@@ -73,7 +104,7 @@ export class NovelsController {
   })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   findContext(@Param('novelId') novelId: string) {
-    return this.novelsService.findContext(novelId);
+    return this.findNovelContextUseCase.execute(novelId);
   }
 
   @Put(':novelId/context')
@@ -89,6 +120,16 @@ export class NovelsController {
     @Param('novelId') novelId: string,
     @Body() input: UpsertNovelContextDto,
   ) {
-    return this.novelsService.upsertContext(novelId, input);
+    // Serialize characters array to JSON string (matches existing API contract)
+    const characters = input.characters
+      ? JSON.stringify(input.characters)
+      : undefined;
+
+    return this.upsertNovelContextUseCase.execute(novelId, {
+      characters,
+      worldBuilding: input.worldBuilding,
+      plotOutline: input.plotOutline,
+      writingStyle: input.writingStyle,
+    });
   }
 }

@@ -1,10 +1,10 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import {
-  IEpisodeChunkRepository,
-  EPISODE_CHUNK_REPOSITORY,
-} from '../../../domain/repositories/episode-chunk.repository.interface.js';
-import { INovelRepository, NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
-import { IAiProvider, AI_PROVIDER } from '../../ports/ai-provider.port.js';
+import type { IEpisodeChunkRepository } from '../../../domain/repositories/episode-chunk.repository.interface.js';
+import { EPISODE_CHUNK_REPOSITORY } from '../../../domain/repositories/episode-chunk.repository.interface.js';
+import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
+import type { IAiProvider } from '../../ports/ai-provider.port.js';
+import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
 
 /** The fields from NovelContext that are used to build the AI context string. */
 interface NovelContextFields {

@@ -1,8 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import {
-  INovelRepository,
-  NOVEL_REPOSITORY,
-} from '../../../domain/repositories/novel.repository.interface.js';
+import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import type { NovelContextProps } from '../../../domain/entities/novel.entity.js';
 import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
 

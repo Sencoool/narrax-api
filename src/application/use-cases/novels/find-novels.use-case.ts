@@ -1,10 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import {
-  INovelRepository,
-  NOVEL_REPOSITORY,
-  FindNovelsFilter,
-  PaginatedNovels,
-} from '../../../domain/repositories/novel.repository.interface.js';
+import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import type { FindNovelsFilter, PaginatedNovels } from '../../../domain/repositories/novel.repository.interface.js';
+import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import type { NovelStatusValue } from '../../../domain/value-objects/novel-status.vo.js';
 
 export interface FindNovelsInput {

@@ -1,14 +1,11 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { IAiProvider, AI_PROVIDER } from '../../ports/ai-provider.port.js';
+import type { IAiProvider } from '../../ports/ai-provider.port.js';
+import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
 import { BuildRagContextUseCase } from '../rag/build-rag-context.use-case.js';
-import {
-  INovelRepository,
-  NOVEL_REPOSITORY,
-} from '../../../domain/repositories/novel.repository.interface.js';
-import {
-  IEpisodeRepository,
-  EPISODE_REPOSITORY,
-} from '../../../domain/repositories/episode.repository.interface.js';
+import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
+import type { IEpisodeRepository } from '../../../domain/repositories/episode.repository.interface.js';
+import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
 import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
 
 // ─── Internal constants ──────────────────────────────────────────────────────
@@ -95,6 +92,29 @@ export interface StreamStoryGenerationInput {
 /** Callback invoked for each SSE event — the controller writes it to the response. */
 export type StreamEventCallback = (event: StreamEvent) => void;
 
+/**
+ * Persistence callbacks injected by the controller as a closure.
+ * This keeps the use case free from direct Prisma/infrastructure imports.
+ */
+export interface StoryPersistence {
+  createRequest(data: {
+    novelId: string;
+    sourceEpisodeId: string | null;
+    prompt: string;
+    maxTokens: number;
+    temperature: number | null;
+  }): Promise<{ id: string }>;
+
+  updateRequest(
+    id: string,
+    data: {
+      status: 'completed' | 'failed' | 'canceled';
+      output?: string;
+      error?: string | null;
+    },
+  ): Promise<void>;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -105,8 +125,7 @@ export type StreamEventCallback = (event: StreamEvent) => void;
  * 2. Build RAG context (cosine search + NovelContext)
  * 3. Build system prompt with tone constraints
  * 4. Stream tokens from the AI provider
- * 5. Persist a StoryGenerationRequest record (via PrismaService — injected separately
- *    because StoryGenerationRequest doesn't have a full repository yet; it will in Phase 6)
+ * 5. Persist a StoryGenerationRequest record via StoryPersistence callbacks
  *
  * Supports two modes auto-selected by targetChars:
  * - Single-shot: one call, fast, ≤ SINGLE_SHOT_THRESHOLD chars
@@ -129,29 +148,7 @@ export class StreamStoryGenerationUseCase {
   async execute(
     input: StreamStoryGenerationInput,
     onEvent: StreamEventCallback,
-    /**
-     * Callback to create a StoryGenerationRequest DB record.
-     * Kept as a callback rather than injecting PrismaService here so that
-     * this use case doesn't depend directly on any infrastructure layer.
-     * The concrete implementation is provided by the controller via a closure.
-     */
-    persistence: {
-      createRequest: (data: {
-        novelId: string;
-        sourceEpisodeId: string | null;
-        prompt: string;
-        maxTokens: number;
-        temperature: number | null;
-      }) => Promise<{ id: string }>;
-      updateRequest: (
-        id: string,
-        data: {
-          status: 'completed' | 'failed' | 'canceled';
-          output?: string;
-          error?: string | null;
-        },
-      ) => Promise<void>;
-    },
+    persistence: StoryPersistence,
   ): Promise<void> {
     const targetChars = input.targetChars
       ? Math.min(input.targetChars, 15_000)
@@ -211,7 +208,6 @@ export class StreamStoryGenerationUseCase {
         input,
         storySoFar,
         systemPrompt,
-        targetChars,
         onEvent,
         persistence,
       );
@@ -233,15 +229,8 @@ export class StreamStoryGenerationUseCase {
     input: StreamStoryGenerationInput,
     storySoFar: string,
     systemPrompt: string,
-    targetChars: number,
     onEvent: StreamEventCallback,
-    persistence: StreamStoryGenerationUseCase['execute'] extends (
-      a: unknown,
-      b: unknown,
-      c: infer P
-    ) => unknown
-      ? P
-      : never,
+    persistence: StoryPersistence,
   ): Promise<void> {
     const aiPrompt = storySoFar
       ? `${input.userMessage}\n\n---\n## เนื้อเรื่องที่เขียนไปแล้ว (ให้ต่อจากตรงนี้):\n${storySoFar}`
@@ -300,13 +289,7 @@ export class StreamStoryGenerationUseCase {
     systemPrompt: string,
     targetChars: number,
     onEvent: StreamEventCallback,
-    persistence: StreamStoryGenerationUseCase['execute'] extends (
-      a: unknown,
-      b: unknown,
-      c: infer P
-    ) => unknown
-      ? P
-      : never,
+    persistence: StoryPersistence,
   ): Promise<void> {
     const totalSegments = Math.ceil(targetChars / SEGMENT_CHARS);
 

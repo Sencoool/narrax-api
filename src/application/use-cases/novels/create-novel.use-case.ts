@@ -1,9 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import {
-  INovelRepository,
-  NOVEL_REPOSITORY,
-  CreateNovelData,
-} from '../../../domain/repositories/novel.repository.interface.js';
+import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import type { CreateNovelData } from '../../../domain/repositories/novel.repository.interface.js';
+import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import { NovelEntity } from '../../../domain/entities/novel.entity.js';
 
 export interface CreateNovelInput {

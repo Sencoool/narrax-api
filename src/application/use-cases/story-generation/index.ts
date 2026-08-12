@@ -8,4 +8,5 @@ export type {
   SegmentDoneEvent,
   DoneEvent,
   ErrorEvent,
+  StoryPersistence,
 } from './stream-story-generation.use-case.js';

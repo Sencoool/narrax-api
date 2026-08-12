@@ -1,17 +1,12 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
-import { RagModule } from '../rag/rag.module';
-import { AiModule } from '../ai/ai.module';
-import { EpisodesController } from './episodes.controller';
-import { EpisodesService } from './episodes.service';
-import { FileParserService } from './file-parser.service';
 import { MulterModule } from '@nestjs/platform-express';
+import { ApplicationModule } from '../application/application.module';
+import { EpisodesController } from './episodes.controller';
+import { FileParserService } from './file-parser.service';
 
 @Module({
   imports: [
-    PrismaModule,
-    RagModule,
-    AiModule,
+    ApplicationModule,
     MulterModule.register({
       limits: {
         fileSize: 5 * 1024 * 1024, // Max 5MB
@@ -19,9 +14,6 @@ import { MulterModule } from '@nestjs/platform-express';
     }),
   ],
   controllers: [EpisodesController],
-  providers: [EpisodesService, FileParserService],
-  exports: [EpisodesService],
+  providers: [FileParserService],
 })
 export class EpisodesModule {}
-
-

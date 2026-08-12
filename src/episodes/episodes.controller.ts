@@ -1,15 +1,17 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
   UploadedFile,
   UseGuards,
   UseInterceptors,
-  BadRequestException
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,12 +26,33 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
-import { EpisodesService } from './episodes.service';
+import { FileParserService } from './file-parser.service';
+import { CreateEpisodeUseCase } from '../application/use-cases/episodes/create-episode.use-case';
+import { UploadEpisodeContentUseCase } from '../application/use-cases/episodes/upload-episode-content.use-case';
+import { FindEpisodesUseCase } from '../application/use-cases/episodes/find-episodes.use-case';
+import { FindOneEpisodeUseCase } from '../application/use-cases/episodes/find-one-episode.use-case';
+import { UpdateEpisodeUseCase } from '../application/use-cases/episodes/update-episode.use-case';
+import { DeleteEpisodeUseCase } from '../application/use-cases/episodes/delete-episode.use-case';
+import { GenerateEpisodeSummaryUseCase } from '../application/use-cases/episodes/generate-episode-summary.use-case';
+import { ChunkAndEmbedUseCase } from '../application/use-cases/rag/chunk-and-embed.use-case';
+import { Logger } from '@nestjs/common';
 
 @ApiTags('episodes')
 @Controller()
 export class EpisodesController {
-  constructor(private readonly episodesService: EpisodesService) { }
+  private readonly logger = new Logger(EpisodesController.name);
+
+  constructor(
+    private readonly createEpisodeUseCase: CreateEpisodeUseCase,
+    private readonly uploadEpisodeContentUseCase: UploadEpisodeContentUseCase,
+    private readonly findEpisodesUseCase: FindEpisodesUseCase,
+    private readonly findOneEpisodeUseCase: FindOneEpisodeUseCase,
+    private readonly updateEpisodeUseCase: UpdateEpisodeUseCase,
+    private readonly deleteEpisodeUseCase: DeleteEpisodeUseCase,
+    private readonly generateEpisodeSummaryUseCase: GenerateEpisodeSummaryUseCase,
+    private readonly chunkAndEmbedUseCase: ChunkAndEmbedUseCase,
+    private readonly fileParserService: FileParserService,
+  ) {}
 
   @Post('novels/:novelId/episodes')
   @UseGuards(JwtAuthGuard)
@@ -39,8 +62,24 @@ export class EpisodesController {
     description: 'บันทึกตอนและ trigger RAG embedding + AI summary อัตโนมัติ',
   })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
-  create(@Param('novelId') novelId: string, @Body() input: CreateEpisodeDto) {
-    return this.episodesService.create(novelId, input);
+  async create(
+    @Param('novelId') novelId: string,
+    @Body() input: CreateEpisodeDto,
+  ) {
+    const episode = await this.createEpisodeUseCase.execute(novelId, {
+      title: input.title,
+      order: input.order,
+      isPublished: input.isPublished,
+      content: input.content,
+    });
+
+    // Fire-and-forget: embed + summary
+    this.triggerEmbedding(episode.id, episode.title);
+    if (episode.hasContent()) {
+      this.triggerSummaryGeneration(episode.id, episode.title);
+    }
+
+    return episode;
   }
 
   @Post('novels/:novelId/episodes/upload-content')
@@ -59,14 +98,14 @@ export class EpisodesController {
         },
         title: {
           type: 'string',
-          description: 'ชื่อตอน (ถ้าไม่ระบุ AI จะแนะนำชื่อให้อัตโนมัติ)',
+          description: 'ชื่อตอน (ถ้าไม่ระบุระบบจะใช้ "ตอนที่ N")',
         },
         order: {
           type: 'number',
           description: 'ลำดับตอน (ถ้าไม่ระบุจะต่อท้ายตอนสุดท้าย)',
-        }
+        },
       },
-      required: ['file']
+      required: ['file'],
     },
   })
   @ApiOperation({
@@ -76,50 +115,49 @@ export class EpisodesController {
 2. ทำ RAG embedding เข้า Vector Database สำหรับ semantic search
 3. ให้ AI สร้าง episodeSummary อัตโนมัติ (สรุปเนื้อหาตอน)
 
-ติดตามผลได้จาก GET /episodes/:id — field \`episodeSummary\` จะมีค่าเมื่อ AI ประมวลผลเสร็จ
-
-**หมายเหตุ:** การสร้างเนื้อเรื่องต่อ (AI generation) ต้องกดปุ่มบน frontend แยกต่างหาก
-ผ่าน POST /story-generations/stream`,
+ติดตามผลได้จาก GET /episodes/:id — field \`episodeSummary\` จะมีค่าเมื่อ AI ประมวลผลเสร็จ`,
   })
   @ApiResponse({
     status: 201,
     description: 'Episode ถูกบันทึกแล้ว — AI summary + embedding กำลังทำงานใน background',
-    schema: {
-      example: {
-        id: 'uuid',
-        novelId: 'uuid',
-        title: 'ตอนที่ 1',
-        order: 1,
-        isPublished: false,
-        episodeSummary: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      },
-    },
   })
   async uploadContent(
     @Param('novelId') novelId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Body() { title, order }: { title: string, order: number }
+    @Body() { title, order }: { title: string; order: number },
   ) {
     if (!file) {
       throw new BadRequestException('กรุณาแนบไฟล์เนื้อหา');
     }
-    return this.episodesService.uploadContent(novelId, file, title, order);
-  }
 
+    // File parsing happens in infrastructure (FileParserService)
+    const text = this.fileParserService.extractText(file);
+
+    const episode = await this.uploadEpisodeContentUseCase.execute({
+      novelId,
+      text,
+      title: title ?? null,
+      order,
+    });
+
+    // Fire-and-forget: embed + summary
+    this.triggerEmbedding(episode.id, episode.title);
+    this.triggerSummaryGeneration(episode.id, episode.title);
+
+    return episode;
+  }
 
   @Get('novels/:novelId/episodes')
   @ApiOperation({ summary: 'รายการตอนของนิยาย' })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   findAll(@Param('novelId') novelId: string) {
-    return this.episodesService.findAll(novelId);
+    return this.findEpisodesUseCase.execute(novelId);
   }
 
   @Get('episodes/:id')
   @ApiOperation({ summary: 'ดูรายละเอียดตอน (รวม episodeSummary)' })
   findOne(@Param('id') id: string) {
-    return this.episodesService.findOne(id);
+    return this.findOneEpisodeUseCase.execute(id);
   }
 
   @Patch('episodes/:id')
@@ -129,8 +167,21 @@ export class EpisodesController {
     summary: 'แก้ไขตอน',
     description: 'ถ้าแก้ไข content จะ re-embed และ re-generate summary โดยอัตโนมัติ',
   })
-  update(@Param('id') id: string, @Body() input: UpdateEpisodeDto) {
-    return this.episodesService.update(id, input);
+  async update(@Param('id') id: string, @Body() input: UpdateEpisodeDto) {
+    const episode = await this.updateEpisodeUseCase.execute(id, {
+      title: input.title,
+      content: input.content,
+      order: input.order,
+      isPublished: input.isPublished,
+    });
+
+    // Re-embed and re-summarise if content changed
+    if (input.content) {
+      this.triggerEmbedding(episode.id, episode.title);
+      this.triggerSummaryGeneration(episode.id, episode.title);
+    }
+
+    return episode;
   }
 
   @Post('episodes/:id/generate-summary')
@@ -139,11 +190,7 @@ export class EpisodesController {
   @ApiOperation({
     summary: 'สร้าง / สร้างใหม่ AI summary สำหรับตอน',
     description: `เรียกให้ AI สรุปเนื้อหาตอนและบันทึกลง field \`episodeSummary\`.
-ใช้เมื่อ:
-- ยังไม่มี summary (null)
-- ต้องการ re-generate summary ใหม่
-
-⚠️ การเรียก endpoint นี้จะรอจนกว่า AI จะตอบกลับ (synchronous) อาจใช้เวลาสักครู่`,
+⚠️ การเรียก endpoint นี้จะรอจนกว่า AI จะตอบกลับ (synchronous)`,
   })
   @ApiParam({ name: 'id', description: 'Episode UUID' })
   @ApiResponse({
@@ -151,14 +198,41 @@ export class EpisodesController {
     description: 'Episode ที่มี episodeSummary ที่ถูก generate ใหม่',
   })
   generateSummary(@Param('id') id: string) {
-    return this.episodesService.generateSummary(id);
+    return this.generateEpisodeSummaryUseCase.execute(id);
   }
 
   @Delete('episodes/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'ลบตอน (และ vector chunks อัตโนมัติ)' })
-  remove(@Param('id') id: string) {
-    return this.episodesService.remove(id);
+  async remove(@Param('id') id: string) {
+    await this.deleteEpisodeUseCase.execute(id);
+  }
+
+  // ─── Private fire-and-forget helpers ─────────────────────────────────────
+
+  private triggerEmbedding(episodeId: string, episodeTitle: string): void {
+    this.chunkAndEmbedUseCase
+      .execute(episodeId)
+      .then(() => {
+        this.logger.log(`✅ Embedded episode: "${episodeTitle}"`);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`❌ Failed to embed episode "${episodeTitle}": ${msg}`);
+      });
+  }
+
+  private triggerSummaryGeneration(episodeId: string, episodeTitle: string): void {
+    this.generateEpisodeSummaryUseCase
+      .execute(episodeId)
+      .then(() => {
+        this.logger.log(`✅ Generated summary for episode: "${episodeTitle}"`);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`❌ Failed to generate summary for episode "${episodeTitle}": ${msg}`);
+      });
   }
 }

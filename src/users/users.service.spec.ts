@@ -1,148 +1,123 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './users.service';
-import { PrismaService } from '../prisma/prisma.service';
-import * as argon2 from 'argon2';
+import { LoginUseCase } from '../application/use-cases/auth/login.use-case';
+import { RegisterUseCase } from '../application/use-cases/auth/register.use-case';
+import { USER_REPOSITORY } from '../domain/repositories/user.repository.interface';
+import { PASSWORD_HASHER } from '../application/ports/password-hasher.port';
+import { UserEntity } from '../domain/entities/user.entity';
+import { DomainConflictError } from '../domain/errors/domain-errors';
+import { DomainUnauthorizedError } from '../domain/errors/domain-errors';
 
-jest.mock('argon2', () => ({
-  hash: jest.fn(),
-  verify: jest.fn(),
-}));
+const HASHED = '$argon2id$test$hash';
 
-const prismaMock = {
-  user: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  },
+const mockUserRepo = {
+  findByEmail: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  findAll: jest.fn(),
+  findByGoogleId: jest.fn(),
+  linkGoogleId: jest.fn(),
 };
 
-describe('UsersService', () => {
-  let service: UsersService;
+const mockHasher = {
+  hash: jest.fn().mockResolvedValue(HASHED),
+  verify: jest.fn(),
+};
+
+const makeUser = (overrides: Partial<ConstructorParameters<typeof UserEntity>[0]> = {}) =>
+  new UserEntity({
+    id: 'user-1',
+    email: 'test@example.com',
+    name: 'Test',
+    passwordHash: HASHED,
+    googleId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+
+describe('Auth Use Cases', () => {
+  let registerUseCase: RegisterUseCase;
+  let loginUseCase: LoginUseCase;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        UsersService,
-        {
-          provide: PrismaService,
-          useValue: prismaMock,
-        },
+        RegisterUseCase,
+        LoginUseCase,
+        { provide: USER_REPOSITORY, useValue: mockUserRepo },
+        { provide: PASSWORD_HASHER, useValue: mockHasher },
       ],
     }).compile();
 
-    service = module.get<UsersService>(UsersService);
+    registerUseCase = module.get(RegisterUseCase);
+    loginUseCase = module.get(LoginUseCase);
+    jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
+  // ─── RegisterUseCase ──────────────────────────────────────────────────────
 
-  it('creates a user with hashed password', async () => {
-    (argon2.hash as jest.Mock).mockResolvedValue('hashed');
-    prismaMock.user.create.mockResolvedValue({ id: 'user-1' });
+  describe('RegisterUseCase', () => {
+    it('creates a new user when email is free', async () => {
+      const created = makeUser();
+      mockUserRepo.findByEmail.mockResolvedValue(null);
+      mockUserRepo.create.mockResolvedValue(created);
 
-    const result = await service.create({
-      email: 'test@example.com',
-      name: 'Test User',
-      password: 'secret123',
-    });
-
-    expect(argon2.hash).toHaveBeenCalledWith('secret123');
-    expect(prismaMock.user.create).toHaveBeenCalledWith({
-      data: {
+      const result = await registerUseCase.execute({
         email: 'test@example.com',
-        name: 'Test User',
-        password: 'hashed',
-      },
+        name: 'Test',
+        password: 'password123',
+      });
+
+      expect(mockHasher.hash).toHaveBeenCalledWith('password123');
+      expect(mockUserRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'test@example.com', passwordHash: HASHED }),
+      );
+      expect(result).toBe(created);
     });
-    expect(result).toEqual({ id: 'user-1' });
+
+    it('throws DomainConflictError when email already exists', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(makeUser());
+
+      await expect(
+        registerUseCase.execute({ email: 'test@example.com', name: null, password: 'pw' }),
+      ).rejects.toBeInstanceOf(DomainConflictError);
+    });
   });
 
-  it('lists users ordered by creation date', async () => {
-    prismaMock.user.findMany.mockResolvedValue([{ id: 'user-1' }]);
+  // ─── LoginUseCase ─────────────────────────────────────────────────────────
 
-    const result = await service.findAll();
+  describe('LoginUseCase', () => {
+    it('returns the user on valid credentials', async () => {
+      const user = makeUser();
+      mockUserRepo.findByEmail.mockResolvedValue(user);
+      mockHasher.verify.mockResolvedValue(true);
 
-    expect(prismaMock.user.findMany).toHaveBeenCalledWith({
-      orderBy: { createdAt: 'desc' },
-    });
-    expect(result).toEqual([{ id: 'user-1' }]);
-  });
+      const result = await loginUseCase.execute({
+        email: 'test@example.com',
+        password: 'password123',
+      });
 
-  it('finds a user by id', async () => {
-    prismaMock.user.findUnique.mockResolvedValue({ id: 'user-1' });
-
-    const result = await service.findOne('user-1');
-
-    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-    });
-    expect(result).toEqual({ id: 'user-1' });
-  });
-
-  it('updates a user', async () => {
-    prismaMock.user.update.mockResolvedValue({ id: 'user-1' });
-
-    const result = await service.update('user-1', {
-      email: 'new@example.com',
-      name: 'New Name',
+      expect(mockHasher.verify).toHaveBeenCalledWith(HASHED, 'password123');
+      expect(result).toBe(user);
     });
 
-    expect(prismaMock.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: {
-        email: 'new@example.com',
-        name: 'New Name',
-      },
+    it('throws DomainUnauthorizedError on wrong password', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(makeUser());
+      mockHasher.verify.mockResolvedValue(false);
+
+      await expect(
+        loginUseCase.execute({ email: 'test@example.com', password: 'wrong' }),
+      ).rejects.toBeInstanceOf(DomainUnauthorizedError);
     });
-    expect(result).toEqual({ id: 'user-1' });
-  });
 
-  it('removes a user', async () => {
-    prismaMock.user.delete.mockResolvedValue({ id: 'user-1' });
+    it('throws DomainUnauthorizedError when user does not exist', async () => {
+      mockUserRepo.findByEmail.mockResolvedValue(null);
 
-    const result = await service.remove('user-1');
-
-    expect(prismaMock.user.delete).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
+      await expect(
+        loginUseCase.execute({ email: 'nobody@example.com', password: 'pw' }),
+      ).rejects.toBeInstanceOf(DomainUnauthorizedError);
     });
-    expect(result).toEqual({ id: 'user-1' });
-  });
-
-  it('returns error when login email not found', async () => {
-    prismaMock.user.findUnique.mockResolvedValue(null);
-
-    const result = await service.login('missing@example.com', 'secret');
-
-    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
-      where: { email: 'missing@example.com' },
-    });
-    expect(result).toEqual({ error: 'Invalid email or password' });
-  });
-
-  it('returns error when password is invalid', async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: 'user-1',
-      password: 'hashed',
-    });
-    (argon2.verify as jest.Mock).mockResolvedValue(false);
-
-    const result = await service.login('test@example.com', 'wrong');
-
-    expect(argon2.verify).toHaveBeenCalledWith('hashed', 'wrong');
-    expect(result).toEqual({ error: 'Invalid email or password' });
-  });
-
-  it('returns user when login succeeds', async () => {
-    const user = { id: 'user-1', password: 'hashed' };
-    prismaMock.user.findUnique.mockResolvedValue(user);
-    (argon2.verify as jest.Mock).mockResolvedValue(true);
-
-    const result = await service.login('test@example.com', 'secret');
-
-    expect(argon2.verify).toHaveBeenCalledWith('hashed', 'secret');
-    expect(result).toEqual({ user });
   });
 });

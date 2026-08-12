@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
+import { ValidateGoogleUserUseCase } from '../application/use-cases/auth/validate-google-user.use-case.js';
+import type { ValidateGoogleUserInput } from '../application/use-cases/auth/validate-google-user.use-case.js';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly validateGoogleUserUseCase: ValidateGoogleUserUseCase,
   ) {}
 
   generateJwt(user: { id: string; email: string }) {
@@ -20,30 +21,7 @@ export class AuthService {
     };
   }
 
-  async validateGoogleUser(googleUser: {
-    googleId: string;
-    email: string;
-    name: string;
-  }) {
-    let user = await this.usersService.findByGoogleId(googleUser.googleId);
-
-    if (!user) {
-      user = await this.usersService.findByEmail(googleUser.email);
-
-      if (user) {
-        user = await this.usersService.linkGoogleId(
-          user.id,
-          googleUser.googleId,
-        );
-      } else {
-        user = await this.usersService.createWithGoogle(
-          googleUser.email,
-          googleUser.name,
-          googleUser.googleId,
-        );
-      }
-    }
-
-    return user;
+  async validateGoogleUser(input: ValidateGoogleUserInput) {
+    return this.validateGoogleUserUseCase.execute(input);
   }
 }

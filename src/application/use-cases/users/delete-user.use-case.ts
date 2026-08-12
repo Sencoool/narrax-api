@@ -1,8 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import {
-  IUserRepository,
-  USER_REPOSITORY,
-} from '../../../domain/repositories/user.repository.interface.js';
+import type { IUserRepository } from '../../../domain/repositories/user.repository.interface.js';
+import { USER_REPOSITORY } from '../../../domain/repositories/user.repository.interface.js';
 import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
 
 @Injectable()

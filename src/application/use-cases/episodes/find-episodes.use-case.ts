@@ -1,9 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import {
-  IEpisodeRepository,
-  EPISODE_REPOSITORY,
-  EpisodeSummaryItem,
-} from '../../../domain/repositories/episode.repository.interface.js';
+import type { IEpisodeRepository } from '../../../domain/repositories/episode.repository.interface.js';
+import type { EpisodeSummaryItem } from '../../../domain/repositories/episode.repository.interface.js';
+import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
 
 @Injectable()
 export class FindEpisodesUseCase {
