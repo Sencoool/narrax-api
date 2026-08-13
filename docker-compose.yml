@@ -13,19 +13,5 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-pgvector.sql:/docker-entrypoint-initdb.d/init-pgvector.sql
 
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: plot-weaver-rabbitmq
-    restart: unless-stopped
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-
 volumes:
   postgres_data:
-  rabbitmq_data:
