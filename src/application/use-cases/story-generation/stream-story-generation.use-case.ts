@@ -7,6 +7,11 @@ import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.
 import type { IEpisodeRepository } from '../../../domain/repositories/episode.repository.interface.js';
 import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
 import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
+import type { ConversationTurn } from '../../../story-generation/dto/stream-generation.dto.js';
+import {
+  MultiProviderStreamService,
+  type ActiveModelConfig,
+} from '../../../story-generation/multi-provider-stream.service.js';
 
 // ─── Internal constants ──────────────────────────────────────────────────────
 
@@ -83,10 +88,14 @@ export interface StreamStoryGenerationInput {
   userMessage: string;
   /** HTML content from the frontend editor (current unsaved state) */
   currentContent?: string;
+  /** Prior conversation turns — used to give the AI multi-turn context */
+  conversationHistory?: ConversationTurn[];
   targetChars?: number;
   temperature?: number;
   /** AbortSignal to cancel when the client disconnects */
   signal?: AbortSignal;
+  /** Active model configuration for dynamic provider streaming */
+  modelConfig?: ActiveModelConfig;
 }
 
 /** Callback invoked for each SSE event — the controller writes it to the response. */
@@ -143,6 +152,7 @@ export class StreamStoryGenerationUseCase {
     @Inject(EPISODE_REPOSITORY)
     private readonly episodeRepo: IEpisodeRepository,
     private readonly buildRagContext: BuildRagContextUseCase,
+    private readonly multiProviderStream: MultiProviderStreamService,
   ) {}
 
   async execute(
@@ -189,6 +199,8 @@ export class StreamStoryGenerationUseCase {
     const { contextString, writingStyle } = await this.buildRagContext.execute(
       input.novelId,
       ragQuery,
+      undefined,
+      sourceEpisode?.cast,
     );
 
     this.logger.log(
@@ -202,11 +214,15 @@ export class StreamStoryGenerationUseCase {
       { writingStyle },
     );
 
-    // ── 6. Dispatch to correct pipeline ───────────────────────────────────
+    // ── 6. Build conversation context prefix ───────────────────────────────
+    const conversationPrefix = this.buildConversationPrefix(input.conversationHistory);
+
+    // ── 7. Dispatch to correct pipeline ───────────────────────────────────
     if (mode === 'single-shot') {
       await this.runSingleShot(
         input,
         storySoFar,
+        conversationPrefix,
         systemPrompt,
         onEvent,
         persistence,
@@ -215,6 +231,7 @@ export class StreamStoryGenerationUseCase {
       await this.runSegmented(
         input,
         storySoFar,
+        conversationPrefix,
         systemPrompt,
         targetChars,
         onEvent,
@@ -228,13 +245,15 @@ export class StreamStoryGenerationUseCase {
   private async runSingleShot(
     input: StreamStoryGenerationInput,
     storySoFar: string,
+    conversationPrefix: string,
     systemPrompt: string,
     onEvent: StreamEventCallback,
     persistence: StoryPersistence,
   ): Promise<void> {
-    const aiPrompt = storySoFar
-      ? `${input.userMessage}\n\n---\n## เนื้อเรื่องที่เขียนไปแล้ว (ให้ต่อจากตรงนี้):\n${storySoFar}`
-      : input.userMessage;
+    const storySection = storySoFar
+      ? `\n\n---\n## เนื้อเรื่องที่เขียนไปแล้ว (ให้ต่อจากตรงนี้):\n${storySoFar}`
+      : '';
+    const aiPrompt = `${conversationPrefix}${input.userMessage}${storySection}`;
 
     this.logger.log(`📨 [StoryGen:single] prompt: ${aiPrompt.length} chars | maxTokens: ${TOKENS_PER_SEGMENT}`);
 
@@ -248,11 +267,17 @@ export class StreamStoryGenerationUseCase {
 
     let fullOutput = '';
     try {
-      const stream = this.ai.stream(systemPrompt, aiPrompt, {
-        temperature: input.temperature,
-        maxOutputTokens: TOKENS_PER_SEGMENT,
-        ...(input.signal ? { signal: input.signal } : {}),
-      });
+      const stream = input.modelConfig
+        ? this.multiProviderStream.stream(systemPrompt, aiPrompt, input.modelConfig, {
+            temperature: input.temperature,
+            maxOutputTokens: TOKENS_PER_SEGMENT,
+            ...(input.signal ? { signal: input.signal } : {}),
+          })
+        : this.ai.stream(systemPrompt, aiPrompt, {
+            temperature: input.temperature,
+            maxOutputTokens: TOKENS_PER_SEGMENT,
+            ...(input.signal ? { signal: input.signal } : {}),
+          });
 
       for await (const chunk of stream) {
         if (input.signal?.aborted) break;
@@ -286,6 +311,7 @@ export class StreamStoryGenerationUseCase {
   private async runSegmented(
     input: StreamStoryGenerationInput,
     storySoFar: string,
+    conversationPrefix: string,
     systemPrompt: string,
     targetChars: number,
     onEvent: StreamEventCallback,
@@ -311,7 +337,7 @@ export class StreamStoryGenerationUseCase {
         onEvent({ type: 'segment_start', segment: seg, total: totalSegments });
 
         const segmentPrompt = this.buildSegmentPrompt(
-          input.userMessage,
+          conversationPrefix + input.userMessage,
           storySoFar,
           seg,
           totalSegments,
@@ -322,11 +348,17 @@ export class StreamStoryGenerationUseCase {
 
         let segmentOutput = '';
 
-        const stream = this.ai.stream(systemPrompt, segmentPrompt, {
-          temperature: input.temperature,
-          maxOutputTokens: TOKENS_PER_SEGMENT,
-          ...(input.signal ? { signal: input.signal } : {}),
-        });
+        const stream = input.modelConfig
+          ? this.multiProviderStream.stream(systemPrompt, segmentPrompt, input.modelConfig, {
+              temperature: input.temperature,
+              maxOutputTokens: TOKENS_PER_SEGMENT,
+              ...(input.signal ? { signal: input.signal } : {}),
+            })
+          : this.ai.stream(systemPrompt, segmentPrompt, {
+              temperature: input.temperature,
+              maxOutputTokens: TOKENS_PER_SEGMENT,
+              ...(input.signal ? { signal: input.signal } : {}),
+            });
 
         for await (const chunk of stream) {
           if (input.signal?.aborted) break;
@@ -407,6 +439,23 @@ ${novel.summary ? `สรุปเรื่อง: ${novel.summary}` : ''}${writ
 - **เขียนเป็นร้อยแก้วต่อเนื่อง** (flowing prose) หลายประโยคต่อย่อหน้า ห้ามเขียนประโยคเดียวต่อบรรทัดในรูปแบบรายการ
 - **เว้นวรรคย่อหน้าด้วยบรรทัดว่างเพียง 1 บรรทัด** (blank line เดียว) ห้ามเว้น 2 บรรทัดขึ้นไประหว่างประโยคหรือย่อหน้า
 - **เขียนในระดับฉาก (scene-level)** — ให้ผู้อ่านเห็น ได้ยิน รู้สึกอยู่ในฉากนั้น ผ่านบทสนทนา การกระทำ และความรู้สึก ไม่ใช่สรุปเนื้อเรื่องในระดับ synopsis`;
+  }
+
+  /**
+   * Builds a formatted conversation prefix from prior turns.
+   * Example output:
+   * "[ประวัติการสนทนา]\nผู้ใช้: ...\nAI: ...\n[/ประวัติการสนทนา]\n\n"
+   */
+  private buildConversationPrefix(history?: ConversationTurn[]): string {
+    if (!history || history.length === 0) return '';
+    // Limit to last 10 turns to avoid exceeding context window
+    const recent = history.slice(-10);
+    const lines = recent.map((turn) =>
+      turn.role === 'user'
+        ? `ผู้ใช้: ${turn.content}`
+        : `AI: ${turn.content.slice(0, 800)}`, // cap each assistant turn at 800 chars
+    );
+    return `[ประวัติการสนทนาก่อนหน้า]\n${lines.join('\n')}\n[/ประวัติการสนทนา]\n\nคำสั่งปัจจุบัน: `;
   }
 
   private buildSegmentPrompt(

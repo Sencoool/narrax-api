@@ -11,6 +11,7 @@ export interface UpdateEpisodeInput {
   episodeSummary?: string | null;
   order?: number;
   isPublished?: boolean;
+  cast?: string[];
 }
 
 /**
@@ -39,6 +40,7 @@ export class UpdateEpisodeUseCase {
       episodeSummary: input.episodeSummary,
       order: input.order,
       isPublished: input.isPublished,
+      cast: input.cast,
     };
 
     return this.episodeRepo.update(id, data);

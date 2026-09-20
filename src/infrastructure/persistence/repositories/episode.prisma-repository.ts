@@ -79,6 +79,7 @@ export class PrismaEpisodeRepository implements IEpisodeRepository {
         episodeSummary: data.episodeSummary,
         order: data.order,
         isPublished: data.isPublished,
+        cast: data.cast,
       },
     });
     return EpisodeMapper.toDomain(raw);

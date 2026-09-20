@@ -49,6 +49,7 @@ export class BuildRagContextUseCase {
     novelId: string,
     ragQuery: string,
     topK = this.DEFAULT_TOP_K,
+    cast?: string[],
   ): Promise<BuildRagContextResult> {
     this.logger.log(`🏗️  [RAG:context] Building context for novelId: ${novelId}`);
 
@@ -60,6 +61,7 @@ export class BuildRagContextUseCase {
 
     this.logger.log(`🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`);
 
+    // Retrieve relevant chunks via cosine distance
     const relevantChunks = await this.chunkRepo.findSimilar({
       novelId,
       queryEmbedding,
@@ -80,7 +82,28 @@ export class BuildRagContextUseCase {
       ];
 
       for (const [key, label] of sections) {
-        const value = novelContext[key];
+        let value = novelContext[key];
+        if (key === 'characters' && value && cast && cast.length > 0) {
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+              const castSet = new Set(cast.map((c) => c.toLowerCase()));
+              const filtered = parsed.filter(
+                (item: any) => item?.name && castSet.has(String(item.name).toLowerCase()),
+              );
+              if (filtered.length > 0) {
+                value = filtered
+                  .map(
+                    (c: any) =>
+                      `- ${c.name}${c.role ? ` (${c.role})` : ''}${c.description ? `: ${c.description}` : ''}`,
+                  )
+                  .join('\n');
+              }
+            }
+          } catch {
+            // Keep original if not JSON array
+          }
+        }
         if (value) {
           contextParts.push(`## ${label}\n${value}`);
         }

@@ -7,6 +7,12 @@ export const MAX_TARGET_CHARS = 15_000;
 /** Below this threshold → single-shot pipeline; at or above → segmented pipeline */
 export const SINGLE_SHOT_THRESHOLD = 2_500;
 
+/** A single turn in the conversation history */
+export const conversationTurnSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().max(6000),
+});
+
 export const streamGenerationSchema = z
   .object({
     novelId: z.string().uuid('novelId ต้องเป็น UUID'),
@@ -20,6 +26,14 @@ export const streamGenerationSchema = z
      * ใช้เป็น context "เนื้อเรื่องที่เขียนไปแล้ว" เพื่อให้ AI ต่อเรื่องได้ถูกต้อง
      */
     currentContent: z.string().optional(),
+    /**
+     * ประวัติการสนทนา (สูงสุด 20 รอบ) — ส่งมาจาก frontend chat thread
+     * ใช้ให้ AI เข้าใจ context ของการสนทนาก่อนหน้า เช่น "ทำให้ยาวขึ้น" "เปลี่ยนน้ำเสียง"
+     */
+    conversationHistory: z
+      .array(conversationTurnSchema)
+      .max(20)
+      .optional(),
     /**
      * จำนวนตัวอักษรไทยที่ต้องการ (ผู้ใช้กำหนดความยาว)
      * - ไม่ระบุ → ระบบใช้ค่าเริ่มต้น 2,500 ตัวอักษร
@@ -36,4 +50,5 @@ export const streamGenerationSchema = z
   })
   .meta({ id: 'StreamGeneration' });
 
+export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
 export class StreamGenerationDto extends createZodDto(streamGenerationSchema) { }

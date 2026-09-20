@@ -1,0 +1,312 @@
+import { Injectable, Logger } from '@nestjs/common';
+import type { GenerateOptions } from '../application/ports/ai-provider.port.js';
+
+export interface ActiveModelConfig {
+  provider: 'openai' | 'anthropic' | 'google' | 'mistral' | 'ollama' | 'custom';
+  modelName: string;
+  apiKey?: string | null;
+  baseUrl?: string | null;
+}
+
+export interface StreamOptions extends GenerateOptions {
+  signal?: AbortSignal;
+}
+
+@Injectable()
+export class MultiProviderStreamService {
+  private readonly logger = new Logger(MultiProviderStreamService.name);
+
+  async *stream(
+    systemPrompt: string,
+    userMessage: string,
+    config: ActiveModelConfig,
+    options?: StreamOptions,
+  ): AsyncIterable<string> {
+    const { provider, modelName, apiKey, baseUrl } = config;
+    const temp = options?.temperature ?? 0.7;
+    const maxTokens = options?.maxOutputTokens ?? 2048;
+    const signal = options?.signal;
+
+    this.logger.log(`🌊 [MultiProviderStream] provider=${provider} | model=${modelName}`);
+
+    switch (provider) {
+      case 'ollama':
+        yield* this.streamOllama(systemPrompt, userMessage, modelName, baseUrl, temp, maxTokens, signal);
+        break;
+      case 'openai':
+      case 'custom':
+        yield* this.streamOpenAI(systemPrompt, userMessage, modelName, apiKey, baseUrl, temp, maxTokens, signal);
+        break;
+      case 'anthropic':
+        yield* this.streamAnthropic(systemPrompt, userMessage, modelName, apiKey, temp, maxTokens, signal);
+        break;
+      case 'google':
+        yield* this.streamGoogle(systemPrompt, userMessage, modelName, apiKey, temp, maxTokens, signal);
+        break;
+      case 'mistral':
+        yield* this.streamOpenAI(
+          systemPrompt,
+          userMessage,
+          modelName,
+          apiKey,
+          'https://api.mistral.ai/v1',
+          temp,
+          maxTokens,
+          signal,
+        );
+        break;
+      default:
+        throw new Error(`Unsupported model provider: ${provider}`);
+    }
+  }
+
+  // ─── Ollama ─────────────────────────────────────────────────────────────────
+  private async *streamOllama(
+    systemPrompt: string,
+    userMessage: string,
+    modelName: string,
+    baseUrl: string | null | undefined,
+    temperature: number,
+    maxTokens: number,
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const root = (baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+    const res = await fetch(`${root}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+          { role: 'user', content: userMessage },
+        ],
+        stream: true,
+        options: {
+          temperature,
+          num_predict: maxTokens,
+        },
+      }),
+      signal,
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Ollama stream error ${res.status}: ${err}`);
+    }
+
+    if (!res.body) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const json = JSON.parse(line);
+          const chunk = json.message?.content;
+          if (chunk) yield chunk;
+        } catch {
+          // ignore parse errors on incomplete chunks
+        }
+      }
+    }
+  }
+
+  // ─── OpenAI / Custom ────────────────────────────────────────────────────────
+  private async *streamOpenAI(
+    systemPrompt: string,
+    userMessage: string,
+    modelName: string,
+    apiKey: string | null | undefined,
+    baseUrl: string | null | undefined,
+    temperature: number,
+    maxTokens: number,
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const root = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1';
+    const url = root.endsWith('/chat/completions') ? root : `${root}/chat/completions`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+          { role: 'user', content: userMessage },
+        ],
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+      }),
+      signal,
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`OpenAI API error ${res.status}: ${err}`);
+    }
+
+    if (!res.body) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        const dataStr = trimmed.replace(/^data:\s*/, '');
+        if (dataStr === '[DONE]') return;
+        try {
+          const json = JSON.parse(dataStr);
+          const delta = json.choices?.[0]?.delta?.content;
+          if (delta) yield delta;
+        } catch {
+          // ignore chunk parse errors
+        }
+      }
+    }
+  }
+
+  // ─── Anthropic ──────────────────────────────────────────────────────────────
+  private async *streamAnthropic(
+    systemPrompt: string,
+    userMessage: string,
+    modelName: string,
+    apiKey: string | null | undefined,
+    temperature: number,
+    maxTokens: number,
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey || '',
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        ...(systemPrompt ? { system: systemPrompt } : {}),
+        messages: [{ role: 'user', content: userMessage }],
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+      }),
+      signal,
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Anthropic API error ${res.status}: ${err}`);
+    }
+
+    if (!res.body) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        const dataStr = trimmed.replace(/^data:\s*/, '');
+        try {
+          const json = JSON.parse(dataStr);
+          if (json.type === 'content_block_delta' && json.delta?.text) {
+            yield json.delta.text;
+          }
+        } catch {
+          // ignore chunk parse errors
+        }
+      }
+    }
+  }
+
+  // ─── Google Gemini ──────────────────────────────────────────────────────────
+  private async *streamGoogle(
+    systemPrompt: string,
+    userMessage: string,
+    modelName: string,
+    apiKey: string | null | undefined,
+    temperature: number,
+    maxTokens: number,
+    signal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(systemPrompt
+          ? { system_instruction: { parts: [{ text: systemPrompt }] } }
+          : {}),
+        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        generationConfig: {
+          temperature,
+          maxOutputTokens: maxTokens,
+        },
+      }),
+      signal,
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Google Gemini API error ${res.status}: ${err}`);
+    }
+
+    if (!res.body) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        const dataStr = trimmed.replace(/^data:\s*/, '');
+        try {
+          const json = JSON.parse(dataStr);
+          const parts = json.candidates?.[0]?.content?.parts;
+          if (Array.isArray(parts)) {
+            for (const part of parts) {
+              if (part.text) yield part.text;
+            }
+          }
+        } catch {
+          // ignore chunk parse errors
+        }
+      }
+    }
+  }
+}

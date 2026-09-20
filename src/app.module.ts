@@ -10,6 +10,7 @@ import { NovelsModule } from './novels/novels.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StoryGenerationModule } from './story-generation/story-generation.module';
 import { UsersModule } from './users/users.module';
+import { UserModelsModule } from './user-models/user-models.module';
 import { DomainExceptionFilter } from './infrastructure/filters/domain-exception.filter';
 
 @Module({
@@ -22,6 +23,7 @@ import { DomainExceptionFilter } from './infrastructure/filters/domain-exception
     NovelsModule,
     EpisodesModule,
     StoryGenerationModule,
+    UserModelsModule,
   ],
   controllers: [AppController],
   providers: [

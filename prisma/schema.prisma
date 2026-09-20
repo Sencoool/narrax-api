@@ -63,6 +63,7 @@ model User {
   follows   Follow[]
   bookmarks Bookmark[]
   media     MediaAsset[]
+  modelConfigs UserModelConfig[]
 }
 
 model Profile {
@@ -126,6 +127,7 @@ model Episode {
   episodeSummary String?  @db.Text
   order          Int
   isPublished Boolean  @default(false)
+  cast        String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -134,6 +136,7 @@ model Episode {
   chunks             EpisodeChunk[]
   /// Generation requests that used this episode as their source/seed content
   generationRequests StoryGenerationRequest[]
+  conversationMessages ConversationMessage[]
 
   @@unique([novelId, order])
 }
@@ -248,7 +251,7 @@ model StoryGenerationRequest {
   @@index([sourceEpisodeId])
 }
 
-/// RAG: เก็บ chunks ของแต่ละ episode พร้อม vector embedding สำหรับ semantic search
+/// RAG: 犹犧≒ｹ・ｸ・chunks 犧もｸｭ犧・ｹ≒ｸ歩ｹ謂ｸ･犧ｰ episode 犧樅ｸ｣犹霞ｸｭ犧｡ vector embedding 犧ｪ犧ｳ犧ｫ犧｣犧ｱ犧・semantic search
 model EpisodeChunk {
   id         String                       @id @default(uuid())
   episodeId  String
@@ -266,7 +269,7 @@ model EpisodeChunk {
   @@index([episodeId])
 }
 
-/// บันทึก context ของนิยายสำหรับใช้เป็น system prompt ของ AI
+/// 犧壟ｸｱ犧吭ｸ伶ｸｶ犧・context 犧もｸｭ犧・ｸ吭ｸｴ犧｢犧ｲ犧｢犧ｪ犧ｳ犧ｫ犧｣犧ｱ犧壟ｹ・ｸ癌ｹ霞ｹ犧巵ｹ・ｸ・system prompt 犧もｸｭ犧・AI
 model NovelContext {
   id            String   @id @default(uuid())
   novelId       String   @unique
@@ -274,11 +277,52 @@ model NovelContext {
   characters    String?  @db.Text
   /// JSON: { setting, time, locations }
   worldBuilding String?  @db.Text
-  /// โครงเรื่องหลัก / outline
+  /// 犹もｸ・ｸ｣犧・ｹ犧｣犧ｷ犹謂ｸｭ犧・ｸｫ犧･犧ｱ犧・/ outline
   plotOutline   String?  @db.Text
-  /// คำอธิบาย style การเขียน เช่น "บรรยายละเอียด, บทสนทนาสั้น"
+  /// 犧・ｸｳ犧ｭ犧倨ｸｴ犧壟ｸｲ犧｢ style 犧≒ｸｲ犧｣犹犧もｸｵ犧｢犧・犹犧癌ｹ謂ｸ・"犧壟ｸ｣犧｣犧｢犧ｲ犧｢犧･犧ｰ犹犧ｭ犧ｵ犧｢犧・ 犧壟ｸ伶ｸｪ犧吭ｸ伶ｸ吭ｸｲ犧ｪ犧ｱ犹霞ｸ・
   writingStyle  String?  @db.Text
   updatedAt     DateTime @updatedAt
 
   novel         Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
 }
+
+/// Stores per-episode AI conversation history for multi-device persistence
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  episodeId String
+  role      String   // 'user' | 'assistant'
+  content   String   @db.Text
+  status    String   @default("done")
+  createdAt DateTime @default(now())
+
+  episode   Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, createdAt])
+}
+
+enum ModelProvider {
+  openai
+  anthropic
+  google
+  mistral
+  ollama
+  custom
+}
+
+model UserModelConfig {
+  id        String        @id @default(uuid())
+  userId    String
+  label     String
+  provider  ModelProvider
+  modelName String
+  apiKey    String?       @db.Text
+  baseUrl   String?
+  isDefault Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+

@@ -14,6 +14,7 @@ export interface UpdateEpisodeData {
   episodeSummary?: string | null;
   order?: number;
   isPublished?: boolean;
+  cast?: string[];
 }
 
 /** Lightweight summary returned in list endpoints — omits heavy `content` field. */
