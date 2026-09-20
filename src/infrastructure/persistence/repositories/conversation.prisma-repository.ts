@@ -7,12 +7,16 @@ export class PrismaConversationRepository implements IConversationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByEpisodeId(episodeId: string, limit = 50): Promise<ConversationMessageEntity[]> {
+    // Fetch the NEWEST `limit` messages and restore chronological order.
+    // Ordering ascending with `take` returns the oldest rows instead, which
+    // meant a conversation longer than `limit` never surfaced the recent turns
+    // the AI needs as multi-turn context.
     const rows = await this.prisma.conversationMessage.findMany({
       where: { episodeId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit,
     });
-    return rows.map((r) => ({
+    return rows.reverse().map((r) => ({
       id: r.id,
       episodeId: r.episodeId,
       role: r.role as 'user' | 'assistant',

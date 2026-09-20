@@ -8,3 +8,8 @@ export { UpdateEpisodeUseCase } from './update-episode.use-case.js';
 export type { UpdateEpisodeInput } from './update-episode.use-case.js';
 export { DeleteEpisodeUseCase } from './delete-episode.use-case.js';
 export { GenerateEpisodeSummaryUseCase } from './generate-episode-summary.use-case.js';
+export { EnsureEpisodeOwnershipUseCase } from './ensure-episode-ownership.use-case.js';
+export { GetConversationUseCase } from './get-conversation.use-case.js';
+export { AppendConversationMessageUseCase } from './append-conversation-message.use-case.js';
+export type { AppendConversationMessageInput } from './append-conversation-message.use-case.js';
+export { ClearConversationUseCase } from './clear-conversation.use-case.js';

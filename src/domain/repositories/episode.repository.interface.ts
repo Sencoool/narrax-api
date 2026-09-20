@@ -6,6 +6,7 @@ export interface CreateEpisodeData {
   content: string;
   order: number;
   isPublished: boolean;
+  cast?: string[];
 }
 
 export interface UpdateEpisodeData {

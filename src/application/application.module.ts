@@ -35,6 +35,7 @@ import { ChunkAndEmbedUseCase } from './use-cases/rag/chunk-and-embed.use-case.j
 import { BuildRagContextUseCase } from './use-cases/rag/build-rag-context.use-case.js';
 
 // -- Conversation History ---------------------------------------------------
+import { EnsureEpisodeOwnershipUseCase } from './use-cases/episodes/ensure-episode-ownership.use-case.js';
 import { GetConversationUseCase } from './use-cases/episodes/get-conversation.use-case.js';
 import { AppendConversationMessageUseCase } from './use-cases/episodes/append-conversation-message.use-case.js';
 import { ClearConversationUseCase } from './use-cases/episodes/clear-conversation.use-case.js';
@@ -76,6 +77,7 @@ const USE_CASES = [
   // Story Generation
   StreamStoryGenerationUseCase,
   // Conversation
+  EnsureEpisodeOwnershipUseCase,
   GetConversationUseCase,
   AppendConversationMessageUseCase,
   ClearConversationUseCase,

@@ -25,8 +25,10 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
+import { AppendConversationMessageDto } from './dto/append-conversation-message.dto';
 import { FileParserService } from './file-parser.service';
 import { CreateEpisodeUseCase } from '../application/use-cases/episodes/create-episode.use-case';
 import { UploadEpisodeContentUseCase } from '../application/use-cases/episodes/upload-episode-content.use-case';
@@ -75,6 +77,7 @@ export class EpisodesController {
       order: input.order,
       isPublished: input.isPublished,
       content: input.content,
+      cast: input.cast,
     });
 
     // Fire-and-forget: embed + summary
@@ -218,8 +221,11 @@ export class EpisodesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get conversation history for an episode' })
   @ApiParam({ name: 'id', description: 'Episode UUID' })
-  async getConversation(@Param('id') episodeId: string) {
-    return this.getConversationUseCase.execute(episodeId);
+  async getConversation(
+    @CurrentUser() user: { id: string },
+    @Param('id') episodeId: string,
+  ) {
+    return this.getConversationUseCase.execute(episodeId, user.id);
   }
 
   @Post('episodes/:id/conversation')
@@ -228,15 +234,19 @@ export class EpisodesController {
   @ApiOperation({ summary: 'Append a message to episode conversation history' })
   @ApiParam({ name: 'id', description: 'Episode UUID' })
   async appendConversation(
+    @CurrentUser() user: { id: string },
     @Param('id') episodeId: string,
-    @Body() body: { role: 'user' | 'assistant'; content: string; status?: string },
+    @Body() body: AppendConversationMessageDto,
   ) {
-    return this.appendConversationMessageUseCase.execute({
-      episodeId,
-      role: body.role,
-      content: body.content,
-      status: body.status,
-    });
+    return this.appendConversationMessageUseCase.execute(
+      {
+        episodeId,
+        role: body.role,
+        content: body.content,
+        status: body.status,
+      },
+      user.id,
+    );
   }
 
   @Delete('episodes/:id/conversation')
@@ -245,8 +255,11 @@ export class EpisodesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Clear conversation history for an episode' })
   @ApiParam({ name: 'id', description: 'Episode UUID' })
-  async clearConversation(@Param('id') episodeId: string) {
-    await this.clearConversationUseCase.execute(episodeId);
+  async clearConversation(
+    @CurrentUser() user: { id: string },
+    @Param('id') episodeId: string,
+  ) {
+    await this.clearConversationUseCase.execute(episodeId, user.id);
   }
 
   private triggerSummaryGeneration(episodeId: string, episodeTitle: string): void {

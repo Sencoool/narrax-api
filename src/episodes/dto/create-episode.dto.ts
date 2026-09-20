@@ -7,6 +7,8 @@ export const createEpisodeSchema = z
     content: z.string().optional(),
     order: z.number().int().positive().optional(),
     isPublished: z.boolean().default(false),
+    /** Character names the AI is allowed to use for this episode */
+    cast: z.array(z.string().min(1)).optional(),
   })
   .meta({ id: 'CreateEpisode' });
 

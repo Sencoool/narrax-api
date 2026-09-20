@@ -9,6 +9,7 @@ export interface CreateEpisodeInput {
   order?: number;
   isPublished?: boolean;
   content?: string;
+  cast?: string[];
 }
 
 /**
@@ -46,6 +47,7 @@ export class CreateEpisodeUseCase {
       content: input.content ?? '',
       order,
       isPublished: input.isPublished ?? false,
+      cast: input.cast,
     });
   }
 }
