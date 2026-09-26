@@ -55,6 +55,8 @@ jobs:
         run: npm ci
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Lint
+        run: npm run lint
       - name: Test
         run: npm run test
       - name: Build
