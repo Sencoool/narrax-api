@@ -270,6 +270,14 @@ model StoryGenerationRequest {
   maxTokens       Int?
   output          String?           @db.Text
   error           String?           @db.Text
+  /// The exact system prompt the model received. Local models live or die on the
+  /// instructions they were given, so a writer needs to be able to read them back.
+  systemPrompt    String?           @db.Text
+  /// The assembled context: the retrieved chunks, the lore and the history that
+  /// were sent, as JSON. This is what answers "did retrieval find anything?".
+  contextSnapshot Json?
+  /// Wall-clock duration of the generation, in milliseconds.
+  durationMs      Int?
   externalJobId   String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
