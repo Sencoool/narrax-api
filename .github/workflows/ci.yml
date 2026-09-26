@@ -11,6 +11,10 @@ jobs:
       POSTGRES_USER: ci_user
       POSTGRES_PASSWORD: ci_pass
       POSTGRES_DB: ci_db
+      # Required at boot: JwtStrategy throws without JWT_SECRET, and CI has no
+      # .env file. Throwaway values -- nothing here is used outside this job.
+      JWT_SECRET: ci-only-secret-not-used-anywhere-else
+      MODEL_ENCRYPTION_KEY: ci-only-32-character-encryption-key
       DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db
     services:
       postgres:

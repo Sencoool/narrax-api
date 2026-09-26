@@ -5,6 +5,12 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
 
+// The app is deliberately fail-fast about secrets -- JwtStrategy throws at
+// construction when JWT_SECRET is missing -- and CI has no .env file. Supply the
+// minimum here so this suite does not depend on a developer's local .env.
+process.env.JWT_SECRET ??= 'e2e-only-secret';
+process.env.MODEL_ENCRYPTION_KEY ??= 'e2e-only-32-character-encryption-key';
+
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
