@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const createNovelSchema = z
   .object({
     title: z.string().min(1, 'ชื่อนิยายไม่ควรว่างเปล่า').max(200),
-    summary: z.string().max(2000).optional(),
+    summary: z.string().max(2000).nullable().optional(),
     status: z.enum(['draft', 'unpublished', 'published']).default('draft'),
     tags: z.array(z.string().min(1)).optional(),
   })

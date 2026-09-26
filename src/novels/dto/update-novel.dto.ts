@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const updateNovelSchema = z
   .object({
     title: z.string().min(1).max(200).optional(),
-    summary: z.string().max(2000).optional(),
+    summary: z.string().max(2000).nullable().optional(),
     status: z.enum(['draft', 'unpublished', 'published']).optional(),
     tags: z.array(z.string()).optional(),
   })

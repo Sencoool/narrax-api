@@ -281,7 +281,7 @@ model StoryGenerationRequest {
   @@index([sourceEpisodeId])
 }
 
-/// RAG: episode chunks with a vector embedding, used for semantic search
+/// RAG: เก็บ chunks ของตอน พร้อม vector embedding สำหรับ semantic search
 model EpisodeChunk {
   id         String                       @id @default(uuid())
   episodeId  String
@@ -299,7 +299,7 @@ model EpisodeChunk {
   @@index([episodeId])
 }
 
-/// The story context the author defines; injected into the AI system prompt
+/// ข้อมูล context ของเรื่องที่ผู้เขียนกำหนด ใช้เป็น system prompt ของ AI
 model NovelContext {
   id            String   @id @default(uuid())
   novelId       String   @unique
@@ -307,9 +307,9 @@ model NovelContext {
   characters    String?  @db.Text
   /// JSON: { setting, time, locations }
   worldBuilding String?  @db.Text
-/// Main plot thread / outline
+/// โครงเรื่องหลัก / outline
   plotOutline   String?  @db.Text
-/// Writing style -- the author's voice: phrasing they prefer, terms to avoid
+/// สไตล์การเขียนของผู้เขียน (เช่น คำที่ชอบใช้ และคำที่ควรหลีกเลี่ยง)
   writingStyle  String?  @db.Text
   updatedAt     DateTime @updatedAt
 
