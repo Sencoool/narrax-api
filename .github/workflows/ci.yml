@@ -12,10 +12,6 @@ jobs:
       POSTGRES_PASSWORD: ci_pass
       POSTGRES_DB: ci_db
       DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db
-      RABBITMQ_DEFAULT_USER: ci_rabbit
-      RABBITMQ_DEFAULT_PASS: ci_rabbit_pass
-      RABBITMQ_HOST: localhost
-      RABBITMQ_PORT: 5672
     services:
       postgres:
         image: postgres:16-alpine
@@ -27,19 +23,6 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U ci_user -d ci_db"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      rabbitmq:
-        image: rabbitmq:3.13-management-alpine
-        env:
-          RABBITMQ_DEFAULT_USER: ci_rabbit
-          RABBITMQ_DEFAULT_PASS: ci_rabbit_pass
-        ports:
-          - 5672:5672
-          - 15672:15672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
