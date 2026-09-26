@@ -144,9 +144,16 @@ export class NovelsController {
     @CurrentUser() user: { id: string },
     @Body() input: UpsertNovelContextDto,
   ) {
-    const characters = input.characters
-      ? JSON.stringify(input.characters)
-      : undefined;
+    // Three distinct meanings, and the database distinguishes all three:
+    //   omitted  -> leave the stored value alone
+    //   null     -> clear it
+    //   an array -> replace it (an empty array clears the cast)
+    const characters =
+      input.characters === undefined
+        ? undefined
+        : input.characters === null
+          ? null
+          : JSON.stringify(input.characters);
 
     return this.upsertNovelContextUseCase.execute(novelId, user.id, {
       characters,

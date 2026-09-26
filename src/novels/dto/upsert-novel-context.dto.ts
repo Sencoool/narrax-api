@@ -11,10 +11,14 @@ const characterSchema = z.object({
 
 export const upsertNovelContextSchema = z
   .object({
-    characters: z.array(characterSchema).optional(),
-    worldBuilding: z.string().max(1000).optional(),
-    plotOutline: z.string().max(5000).optional(),
-    writingStyle: z.string().max(1000).optional(),
+    /**
+     * `null` clears the stored value; omitting the field leaves it untouched.
+     * Both are meaningful and must not be collapsed into one another.
+     */
+    characters: z.array(characterSchema).nullable().optional(),
+    worldBuilding: z.string().max(1000).nullable().optional(),
+    plotOutline: z.string().max(5000).nullable().optional(),
+    writingStyle: z.string().max(1000).nullable().optional(),
   })
   .meta({ id: 'UpsertNovelContext' });
 
