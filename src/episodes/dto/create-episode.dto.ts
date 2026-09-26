@@ -12,5 +12,4 @@ export const createEpisodeSchema = z
   })
   .meta({ id: 'CreateEpisode' });
 
-
-export class CreateEpisodeDto extends createZodDto(createEpisodeSchema) { }
+export class CreateEpisodeDto extends createZodDto(createEpisodeSchema) {}

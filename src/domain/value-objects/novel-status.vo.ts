@@ -6,7 +6,11 @@ import { DomainValidationError } from '../errors/domain-errors.js';
  */
 export type NovelStatusValue = 'draft' | 'unpublished' | 'published';
 
-const VALID_STATUSES: NovelStatusValue[] = ['draft', 'unpublished', 'published'];
+const VALID_STATUSES: NovelStatusValue[] = [
+  'draft',
+  'unpublished',
+  'published',
+];
 
 /**
  * Value object that wraps a NovelStatus string and validates it.

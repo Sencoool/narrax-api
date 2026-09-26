@@ -26,7 +26,9 @@ describe('BuildRagContextUseCase', () => {
   });
 
   it('still returns novel context when the embedding provider is down', async () => {
-    ai.generateEmbedding.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+    ai.generateEmbedding.mockRejectedValueOnce(
+      new Error('connect ECONNREFUSED'),
+    );
     const useCase = new BuildRagContextUseCase(
       novelRepo as never,
       chunkRepo as never,

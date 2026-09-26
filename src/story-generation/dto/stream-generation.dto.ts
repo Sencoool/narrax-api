@@ -30,10 +30,7 @@ export const streamGenerationSchema = z
      * ประวัติการสนทนา (สูงสุด 20 รอบ) — ส่งมาจาก frontend chat thread
      * ใช้ให้ AI เข้าใจ context ของการสนทนาก่อนหน้า เช่น "ทำให้ยาวขึ้น" "เปลี่ยนน้ำเสียง"
      */
-    conversationHistory: z
-      .array(conversationTurnSchema)
-      .max(20)
-      .optional(),
+    conversationHistory: z.array(conversationTurnSchema).max(20).optional(),
     /**
      * จำนวนตัวอักษรไทยที่ต้องการ (ผู้ใช้กำหนดความยาว)
      * - ไม่ระบุ → ระบบใช้ค่าเริ่มต้น 2,500 ตัวอักษร
@@ -51,4 +48,4 @@ export const streamGenerationSchema = z
   .meta({ id: 'StreamGeneration' });
 
 export type ConversationTurn = z.infer<typeof conversationTurnSchema>;
-export class StreamGenerationDto extends createZodDto(streamGenerationSchema) { }
+export class StreamGenerationDto extends createZodDto(streamGenerationSchema) {}

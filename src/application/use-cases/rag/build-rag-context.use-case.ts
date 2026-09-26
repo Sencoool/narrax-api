@@ -51,7 +51,9 @@ export class BuildRagContextUseCase {
     topK = this.DEFAULT_TOP_K,
     cast?: string[],
   ): Promise<BuildRagContextResult> {
-    this.logger.log(`🏗️  [RAG:context] Building context for novelId: ${novelId}`);
+    this.logger.log(
+      `🏗️  [RAG:context] Building context for novelId: ${novelId}`,
+    );
 
     // Fetch novel metadata first — it never depends on the embedding provider.
     const novelContext = await this.novelRepo.findContext(novelId);
@@ -61,7 +63,9 @@ export class BuildRagContextUseCase {
     let relevantChunks: string[] = [];
     try {
       const queryEmbedding = await this.ai.generateEmbedding(ragQuery);
-      this.logger.log(`🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`);
+      this.logger.log(
+        `🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`,
+      );
 
       relevantChunks = await this.chunkRepo.findSimilar({
         novelId,
@@ -69,7 +73,9 @@ export class BuildRagContextUseCase {
         topK,
         distanceThreshold: this.COSINE_DISTANCE_THRESHOLD,
       });
-      this.logger.log(`🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`);
+      this.logger.log(
+        `🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`,
+      );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(
@@ -95,7 +101,8 @@ export class BuildRagContextUseCase {
             if (Array.isArray(parsed)) {
               const castSet = new Set(cast.map((c) => c.toLowerCase()));
               const filtered = parsed.filter(
-                (item: any) => item?.name && castSet.has(String(item.name).toLowerCase()),
+                (item: any) =>
+                  item?.name && castSet.has(String(item.name).toLowerCase()),
               );
               if (filtered.length > 0) {
                 value = filtered
@@ -115,7 +122,9 @@ export class BuildRagContextUseCase {
         }
       }
     } else {
-      this.logger.warn(`🏗️  [RAG:context] NovelContext NOT found for novelId: ${novelId}`);
+      this.logger.warn(
+        `🏗️  [RAG:context] NovelContext NOT found for novelId: ${novelId}`,
+      );
     }
 
     if (relevantChunks.length > 0) {
@@ -123,11 +132,15 @@ export class BuildRagContextUseCase {
         `## เนื้อเรื่องที่เกี่ยวข้อง\n${relevantChunks.join('\n\n---\n\n')}`,
       );
     } else {
-      this.logger.warn(`🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes`);
+      this.logger.warn(
+        `🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes`,
+      );
     }
 
     const contextString = contextParts.join('\n\n');
-    this.logger.log(`🏗️  [RAG:context] Built — ${contextString.length} chars (${contextParts.length} sections)`);
+    this.logger.log(
+      `🏗️  [RAG:context] Built — ${contextString.length} chars (${contextParts.length} sections)`,
+    );
 
     return {
       contextString,

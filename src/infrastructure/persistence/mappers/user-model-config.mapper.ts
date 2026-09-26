@@ -10,7 +10,7 @@ export class UserModelConfigMapper {
       id: raw.id,
       userId: raw.userId,
       label: raw.label,
-      provider: raw.provider as ModelProviderType,
+      provider: raw.provider,
       modelName: raw.modelName,
       apiKey: raw.apiKey,
       baseUrl: raw.baseUrl,

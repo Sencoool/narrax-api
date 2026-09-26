@@ -49,7 +49,9 @@ export class EpisodeEntity {
   }
 
   hasSummary(): boolean {
-    return this.episodeSummary !== null && this.episodeSummary.trim().length > 0;
+    return (
+      this.episodeSummary !== null && this.episodeSummary.trim().length > 0
+    );
   }
 
   /**

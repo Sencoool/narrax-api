@@ -35,7 +35,7 @@ export class PrismaEpisodeRepository implements IEpisodeRepository {
       },
     });
 
-    return rows.map((r: typeof rows[number]) => ({
+    return rows.map((r: (typeof rows)[number]) => ({
       id: r.id,
       novelId: r.novelId,
       title: r.title,

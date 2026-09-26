@@ -61,6 +61,8 @@ describe('PrismaConversationRepository.findByEpisodeId', () => {
 
     await repo.findByEpisodeId(episodeId);
 
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 50 }));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 50 }),
+    );
   });
 });

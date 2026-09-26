@@ -8,7 +8,10 @@
 }
 
 export interface IConversationRepository {
-  findByEpisodeId(episodeId: string, limit?: number): Promise<ConversationMessageEntity[]>;
+  findByEpisodeId(
+    episodeId: string,
+    limit?: number,
+  ): Promise<ConversationMessageEntity[]>;
   create(input: {
     episodeId: string;
     role: 'user' | 'assistant';

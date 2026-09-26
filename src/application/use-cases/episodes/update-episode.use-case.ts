@@ -29,7 +29,11 @@ export class UpdateEpisodeUseCase {
     private readonly ensureEpisodeOwnership: EnsureEpisodeOwnershipUseCase,
   ) {}
 
-  async execute(id: string, userId: string, input: UpdateEpisodeInput): Promise<EpisodeEntity> {
+  async execute(
+    id: string,
+    userId: string,
+    input: UpdateEpisodeInput,
+  ): Promise<EpisodeEntity> {
     // Throws DomainNotFoundError (404) or DomainForbiddenError (403)
     await this.ensureEpisodeOwnership.execute(id, userId);
 

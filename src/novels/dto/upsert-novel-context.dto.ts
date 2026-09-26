@@ -20,4 +20,4 @@ export const upsertNovelContextSchema = z
 
 export class UpsertNovelContextDto extends createZodDto(
   upsertNovelContextSchema,
-) { }
+) {}

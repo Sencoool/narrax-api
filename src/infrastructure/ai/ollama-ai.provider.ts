@@ -1,6 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { IAiProvider, GenerateOptions } from '../../application/ports/ai-provider.port.js';
+import type {
+  IAiProvider,
+  GenerateOptions,
+} from '../../application/ports/ai-provider.port.js';
 
 // ─── Log helpers ─────────────────────────────────────────────────────────────
 
@@ -44,7 +47,9 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
     this.logger.log(`🤖 [OllamaAiProvider] initialized`);
     this.logger.log(`🤖 [OllamaAiProvider] Base URL   : ${this.baseUrl}`);
     this.logger.log(`🤖 [OllamaAiProvider] Text model : ${this.textModel}`);
-    this.logger.log(`🤖 [OllamaAiProvider] Embed model: ${this.embeddingModel}`);
+    this.logger.log(
+      `🤖 [OllamaAiProvider] Embed model: ${this.embeddingModel}`,
+    );
     this.logger.log(`${SEP}`);
   }
 
@@ -59,8 +64,12 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
     const maxTokens = options?.maxOutputTokens ?? 2048;
 
     this.logger.log(`${SEP}`);
-    this.logger.log(`🤖 [AI:generate] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`);
-    this.logger.log(`🤖 [AI:generate] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`);
+    this.logger.log(
+      `🤖 [AI:generate] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`,
+    );
+    this.logger.log(
+      `🤖 [AI:generate] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`,
+    );
     // logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);  // REMOVED: do not log manuscript content
     // logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);  // REMOVED: do not log manuscript content
 
@@ -81,7 +90,9 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
     }
 
     const data = (await response.json()) as { response: string };
-    this.logger.log(`🤖 [AI:generate] ✅ ${data.response.length} chars received`);
+    this.logger.log(
+      `🤖 [AI:generate] ✅ ${data.response.length} chars received`,
+    );
     // logBlock(this.logger, `RESPONSE — ${data.response.length} chars`, data.response);  // REMOVED: do not log manuscript content
     this.logger.log(`${SEP}`);
 
@@ -104,7 +115,9 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
     }
 
     const data = (await response.json()) as { embedding: number[] };
-    this.logger.debug(`🔢 [AI:embed] ✅ ${data.embedding.length} dims returned`);
+    this.logger.debug(
+      `🔢 [AI:embed] ✅ ${data.embedding.length} dims returned`,
+    );
 
     return data.embedding;
   }
@@ -118,7 +131,9 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
     const maxTokens = options?.maxOutputTokens ?? 4000;
 
     this.logger.log(`${SEP}`);
-    this.logger.log(`🌊 [AI:stream] START | model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`);
+    this.logger.log(
+      `🌊 [AI:stream] START | model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`,
+    );
     // logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);  // REMOVED: do not log manuscript content
     // logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);  // REMOVED: do not log manuscript content
 
@@ -132,7 +147,7 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
         stream: true,
         options: { temperature: temp, num_predict: maxTokens },
       }),
-      signal: (options as { signal?: AbortSignal } | undefined)?.signal,
+      signal: options?.signal,
     });
 
     if (!response.ok || !response.body) {

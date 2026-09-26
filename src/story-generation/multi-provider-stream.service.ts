@@ -36,21 +36,56 @@ export class MultiProviderStreamService {
     const maxTokens = options?.maxOutputTokens ?? 2048;
     const signal = options?.signal;
 
-    this.logger.log(`🌊 [MultiProviderStream] provider=${provider} | model=${modelName}`);
+    this.logger.log(
+      `🌊 [MultiProviderStream] provider=${provider} | model=${modelName}`,
+    );
 
     switch (provider) {
       case 'ollama':
-        yield* this.streamOllama(systemPrompt, userMessage, modelName, baseUrl, temp, maxTokens, signal);
+        yield* this.streamOllama(
+          systemPrompt,
+          userMessage,
+          modelName,
+          baseUrl,
+          temp,
+          maxTokens,
+          signal,
+        );
         break;
       case 'openai':
       case 'custom':
-        yield* this.streamOpenAI(systemPrompt, userMessage, modelName, apiKey, baseUrl, temp, maxTokens, signal);
+        yield* this.streamOpenAI(
+          systemPrompt,
+          userMessage,
+          modelName,
+          apiKey,
+          baseUrl,
+          temp,
+          maxTokens,
+          signal,
+        );
         break;
       case 'anthropic':
-        yield* this.streamAnthropic(systemPrompt, userMessage, modelName, apiKey, temp, maxTokens, signal);
+        yield* this.streamAnthropic(
+          systemPrompt,
+          userMessage,
+          modelName,
+          apiKey,
+          temp,
+          maxTokens,
+          signal,
+        );
         break;
       case 'google':
-        yield* this.streamGoogle(systemPrompt, userMessage, modelName, apiKey, temp, maxTokens, signal);
+        yield* this.streamGoogle(
+          systemPrompt,
+          userMessage,
+          modelName,
+          apiKey,
+          temp,
+          maxTokens,
+          signal,
+        );
         break;
       case 'mistral':
         yield* this.streamOpenAI(
@@ -150,8 +185,12 @@ export class MultiProviderStreamService {
     maxTokens: number,
     signal?: AbortSignal,
   ): AsyncIterable<string> {
-    const root = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1';
-    const url = root.endsWith('/chat/completions') ? root : `${root}/chat/completions`;
+    const root = baseUrl
+      ? baseUrl.replace(/\/+$/, '')
+      : 'https://api.openai.com/v1';
+    const url = root.endsWith('/chat/completions')
+      ? root
+      : `${root}/chat/completions`;
 
     const res = await fetch(url, {
       method: 'POST',

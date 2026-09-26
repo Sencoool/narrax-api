@@ -1,4 +1,7 @@
-import type { UserModelConfigEntity, ModelProviderType } from '../entities/user-model-config.entity.js';
+import type {
+  UserModelConfigEntity,
+  ModelProviderType,
+} from '../entities/user-model-config.entity.js';
 
 export interface CreateUserModelConfigInput {
   userId: string;
@@ -22,9 +25,14 @@ export interface IUserModelConfigRepository {
   findByUserId(userId: string): Promise<UserModelConfigEntity[]>;
   findDefaultForUser(userId: string): Promise<UserModelConfigEntity | null>;
   create(data: CreateUserModelConfigInput): Promise<UserModelConfigEntity>;
-  update(id: string, data: UpdateUserModelConfigInput): Promise<UserModelConfigEntity>;
+  update(
+    id: string,
+    data: UpdateUserModelConfigInput,
+  ): Promise<UserModelConfigEntity>;
   delete(id: string): Promise<void>;
   setDefault(userId: string, id: string): Promise<void>;
 }
 
-export const USER_MODEL_CONFIG_REPOSITORY = Symbol('USER_MODEL_CONFIG_REPOSITORY');
+export const USER_MODEL_CONFIG_REPOSITORY = Symbol(
+  'USER_MODEL_CONFIG_REPOSITORY',
+);

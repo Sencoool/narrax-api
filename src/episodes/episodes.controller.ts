@@ -206,10 +206,7 @@ export class EpisodesController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete episode' })
-  async remove(
-    @CurrentUser() user: { id: string },
-    @Param('id') id: string,
-  ) {
+  async remove(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     await this.deleteEpisodeUseCase.execute(id, user.id);
   }
 
@@ -223,7 +220,9 @@ export class EpisodesController {
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error('Failed to embed episode ' + episodeTitle + ': ' + msg);
+        this.logger.error(
+          'Failed to embed episode ' + episodeTitle + ': ' + msg,
+        );
       });
   }
 
@@ -287,7 +286,9 @@ export class EpisodesController {
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.logger.error('Failed to generate summary for episode ' + episodeTitle + ': ' + msg);
+        this.logger.error(
+          'Failed to generate summary for episode ' + episodeTitle + ': ' + msg,
+        );
       });
   }
 }

@@ -67,7 +67,9 @@ export class UserModelsService {
     return list.map((item) => this.toSafeDto(item));
   }
 
-  async getDefaultForUser(userId: string): Promise<UserModelConfigEntity | null> {
+  async getDefaultForUser(
+    userId: string,
+  ): Promise<UserModelConfigEntity | null> {
     return this.repo.findDefaultForUser(userId);
   }
 
@@ -79,7 +81,10 @@ export class UserModelsService {
     return this.toSafeDto(found);
   }
 
-  async create(userId: string, dto: CreateUserModelDto): Promise<SafeUserModelConfig> {
+  async create(
+    userId: string,
+    dto: CreateUserModelDto,
+  ): Promise<SafeUserModelConfig> {
     assertSafeBaseUrl(dto.baseUrl, dto.provider);
     const encryptedKey = dto.apiKey ? encryptApiKey(dto.apiKey.trim()) : null;
     const created = await this.repo.create({
@@ -105,12 +110,15 @@ export class UserModelsService {
     }
 
     assertSafeBaseUrl(dto.baseUrl, dto.provider ?? found.provider);
-    const encryptedKey = dto.apiKey ? encryptApiKey(dto.apiKey.trim()) : undefined;
+    const encryptedKey = dto.apiKey
+      ? encryptApiKey(dto.apiKey.trim())
+      : undefined;
     const updated = await this.repo.update(id, {
       label: dto.label?.trim(),
       modelName: dto.modelName?.trim(),
       apiKey: encryptedKey,
-      baseUrl: dto.baseUrl !== undefined ? (dto.baseUrl?.trim() || null) : undefined,
+      baseUrl:
+        dto.baseUrl !== undefined ? dto.baseUrl?.trim() || null : undefined,
     });
 
     if (dto.isDefault) {
@@ -154,14 +162,16 @@ export class UserModelsService {
       }
       provider = provider || saved.provider;
       modelName = modelName || saved.modelName;
-      baseUrl = baseUrl !== undefined ? baseUrl : saved.baseUrl ?? undefined;
+      baseUrl = baseUrl !== undefined ? baseUrl : (saved.baseUrl ?? undefined);
       if (!apiKey && saved.apiKey) {
         apiKey = decryptApiKey(saved.apiKey);
       }
     }
 
     if (!provider || !modelName) {
-      throw new BadRequestException('Provider and model name are required for testing');
+      throw new BadRequestException(
+        'Provider and model name are required for testing',
+      );
     }
     assertSafeBaseUrl(baseUrl, provider);
 
@@ -176,11 +186,15 @@ export class UserModelsService {
           signal: abortController.signal,
         });
         if (!res.ok) {
-          throw new Error(`Ollama returned status ${res.status}: ${res.statusText}`);
+          throw new Error(
+            `Ollama returned status ${res.status}: ${res.statusText}`,
+          );
         }
         const data = (await res.json()) as { models?: Array<{ name: string }> };
         const modelNames = data.models?.map((m) => m.name) ?? [];
-        const found = modelNames.some((n) => n === modelName || n.startsWith(`${modelName}:`));
+        const found = modelNames.some(
+          (n) => n === modelName || n.startsWith(`${modelName}:`),
+        );
         const latencyMs = Date.now() - start;
         return {
           success: true,
@@ -192,7 +206,9 @@ export class UserModelsService {
       }
 
       if (provider === 'openai' || provider === 'custom') {
-        const rootUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1';
+        const rootUrl = baseUrl
+          ? baseUrl.replace(/\/+$/, '')
+          : 'https://api.openai.com/v1';
         const url = `${rootUrl}/chat/completions`;
         const res = await fetch(url, {
           method: 'POST',

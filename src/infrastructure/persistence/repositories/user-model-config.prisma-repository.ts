@@ -25,7 +25,9 @@ export class PrismaUserModelConfigRepository implements IUserModelConfigReposito
     return rows.map((r) => UserModelConfigMapper.toDomain(r));
   }
 
-  async findDefaultForUser(userId: string): Promise<UserModelConfigEntity | null> {
+  async findDefaultForUser(
+    userId: string,
+  ): Promise<UserModelConfigEntity | null> {
     const defaultModel = await this.prisma.userModelConfig.findFirst({
       where: { userId, isDefault: true },
     });
@@ -41,7 +43,9 @@ export class PrismaUserModelConfigRepository implements IUserModelConfigReposito
     return fallback ? UserModelConfigMapper.toDomain(fallback) : null;
   }
 
-  async create(data: CreateUserModelConfigInput): Promise<UserModelConfigEntity> {
+  async create(
+    data: CreateUserModelConfigInput,
+  ): Promise<UserModelConfigEntity> {
     const existingCount = await this.prisma.userModelConfig.count({
       where: { userId: data.userId },
     });
@@ -71,7 +75,10 @@ export class PrismaUserModelConfigRepository implements IUserModelConfigReposito
     return UserModelConfigMapper.toDomain(created);
   }
 
-  async update(id: string, data: UpdateUserModelConfigInput): Promise<UserModelConfigEntity> {
+  async update(
+    id: string,
+    data: UpdateUserModelConfigInput,
+  ): Promise<UserModelConfigEntity> {
     const updated = await this.prisma.userModelConfig.update({
       where: { id },
       data: {
@@ -85,7 +92,9 @@ export class PrismaUserModelConfigRepository implements IUserModelConfigReposito
   }
 
   async delete(id: string): Promise<void> {
-    const target = await this.prisma.userModelConfig.findUnique({ where: { id } });
+    const target = await this.prisma.userModelConfig.findUnique({
+      where: { id },
+    });
     if (!target) return;
 
     await this.prisma.userModelConfig.delete({ where: { id } });

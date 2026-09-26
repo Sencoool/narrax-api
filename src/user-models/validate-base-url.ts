@@ -11,7 +11,10 @@ const LOCAL_PROVIDERS = new Set(['ollama', 'custom']);
  * endpoint. Blocks non-HTTP schemes, cloud metadata hosts, and loopback for
  * providers that are not explicitly local.
  */
-export function assertSafeBaseUrl(baseUrl: string | undefined, provider: string): void {
+export function assertSafeBaseUrl(
+  baseUrl: string | undefined,
+  provider: string,
+): void {
   if (!baseUrl || !baseUrl.trim()) return;
 
   let url: URL;

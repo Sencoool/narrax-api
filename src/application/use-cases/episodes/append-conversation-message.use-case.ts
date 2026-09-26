@@ -1,6 +1,9 @@
 ﻿import { Injectable, Inject } from '@nestjs/common';
 import { CONVERSATION_REPOSITORY } from '../../../domain/repositories/conversation.repository.interface.js';
-import type { IConversationRepository, ConversationMessageEntity } from '../../../domain/repositories/conversation.repository.interface.js';
+import type {
+  IConversationRepository,
+  ConversationMessageEntity,
+} from '../../../domain/repositories/conversation.repository.interface.js';
 import { EnsureEpisodeOwnershipUseCase } from './ensure-episode-ownership.use-case.js';
 
 export interface AppendConversationMessageInput {

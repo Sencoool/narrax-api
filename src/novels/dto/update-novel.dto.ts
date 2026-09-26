@@ -10,4 +10,4 @@ export const updateNovelSchema = z
   })
   .meta({ id: 'UpdateNovel' });
 
-export class UpdateNovelDto extends createZodDto(updateNovelSchema) { }
+export class UpdateNovelDto extends createZodDto(updateNovelSchema) {}

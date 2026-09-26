@@ -164,10 +164,13 @@ export class StreamStoryGenerationUseCase {
       ? Math.min(input.targetChars, 15_000)
       : SINGLE_SHOT_THRESHOLD;
 
-    const mode = targetChars <= SINGLE_SHOT_THRESHOLD ? 'single-shot' : 'segmented';
+    const mode =
+      targetChars <= SINGLE_SHOT_THRESHOLD ? 'single-shot' : 'segmented';
 
     this.logger.log(`${'═'.repeat(64)}`);
-    this.logger.log(`🎬 [StoryGen] REQUEST — novelId: ${input.novelId} | mode: ${mode} | targetChars: ${targetChars}`);
+    this.logger.log(
+      `🎬 [StoryGen] REQUEST — novelId: ${input.novelId} | mode: ${mode} | targetChars: ${targetChars}`,
+    );
 
     // ── 1. Load novel ──────────────────────────────────────────────────────
     const novel = await this.novelRepo.findById(input.novelId);
@@ -188,7 +191,7 @@ export class StreamStoryGenerationUseCase {
     // Priority: live editor content > saved episode content > empty
     const storySoFar = input.currentContent
       ? stripHtml(input.currentContent)
-      : sourceEpisode?.content ?? '';
+      : (sourceEpisode?.content ?? '');
 
     // Use the tail of existing content as RAG query — closer to stored chunks
     // than a short user instruction
@@ -215,7 +218,9 @@ export class StreamStoryGenerationUseCase {
     );
 
     // ── 6. Build conversation context prefix ───────────────────────────────
-    const conversationPrefix = this.buildConversationPrefix(input.conversationHistory);
+    const conversationPrefix = this.buildConversationPrefix(
+      input.conversationHistory,
+    );
 
     // ── 7. Dispatch to correct pipeline ───────────────────────────────────
     if (mode === 'single-shot') {
@@ -255,7 +260,9 @@ export class StreamStoryGenerationUseCase {
       : '';
     const aiPrompt = `${conversationPrefix}${input.userMessage}${storySection}`;
 
-    this.logger.log(`📨 [StoryGen:single] prompt: ${aiPrompt.length} chars | maxTokens: ${TOKENS_PER_SEGMENT}`);
+    this.logger.log(
+      `📨 [StoryGen:single] prompt: ${aiPrompt.length} chars | maxTokens: ${TOKENS_PER_SEGMENT}`,
+    );
 
     const request = await persistence.createRequest({
       novelId: input.novelId,
@@ -268,11 +275,16 @@ export class StreamStoryGenerationUseCase {
     let fullOutput = '';
     try {
       const stream = input.modelConfig
-        ? this.multiProviderStream.stream(systemPrompt, aiPrompt, input.modelConfig, {
-            temperature: input.temperature,
-            maxOutputTokens: TOKENS_PER_SEGMENT,
-            ...(input.signal ? { signal: input.signal } : {}),
-          })
+        ? this.multiProviderStream.stream(
+            systemPrompt,
+            aiPrompt,
+            input.modelConfig,
+            {
+              temperature: input.temperature,
+              maxOutputTokens: TOKENS_PER_SEGMENT,
+              ...(input.signal ? { signal: input.signal } : {}),
+            },
+          )
         : this.ai.stream(systemPrompt, aiPrompt, {
             temperature: input.temperature,
             maxOutputTokens: TOKENS_PER_SEGMENT,
@@ -290,12 +302,20 @@ export class StreamStoryGenerationUseCase {
         output: fullOutput,
       });
 
-      this.logger.log(`✅ [StoryGen:single] DONE — ${fullOutput.length} chars | requestId: ${request.id}`);
+      this.logger.log(
+        `✅ [StoryGen:single] DONE — ${fullOutput.length} chars | requestId: ${request.id}`,
+      );
 
-      onEvent({ type: 'done', requestId: request.id, totalChars: fullOutput.length });
+      onEvent({
+        type: 'done',
+        requestId: request.id,
+        totalChars: fullOutput.length,
+      });
     } catch (err: unknown) {
       const status =
-        err instanceof Error && err.name === 'AbortError' ? 'canceled' : 'failed';
+        err instanceof Error && err.name === 'AbortError'
+          ? 'canceled'
+          : 'failed';
       const message = err instanceof Error ? err.message : 'Generation failed';
       await persistence.updateRequest(request.id, {
         status,
@@ -319,7 +339,9 @@ export class StreamStoryGenerationUseCase {
   ): Promise<void> {
     const totalSegments = Math.ceil(targetChars / SEGMENT_CHARS);
 
-    this.logger.log(`📚 [StoryGen:seg] totalSegments: ${totalSegments} | SEGMENT_CHARS: ${SEGMENT_CHARS}`);
+    this.logger.log(
+      `📚 [StoryGen:seg] totalSegments: ${totalSegments} | SEGMENT_CHARS: ${SEGMENT_CHARS}`,
+    );
 
     const request = await persistence.createRequest({
       novelId: input.novelId,
@@ -344,16 +366,23 @@ export class StreamStoryGenerationUseCase {
           prevTail,
         );
 
-        this.logger.log(`📄 [StoryGen:seg] segment [${seg}/${totalSegments}] — prompt: ${segmentPrompt.length} chars`);
+        this.logger.log(
+          `📄 [StoryGen:seg] segment [${seg}/${totalSegments}] — prompt: ${segmentPrompt.length} chars`,
+        );
 
         let segmentOutput = '';
 
         const stream = input.modelConfig
-          ? this.multiProviderStream.stream(systemPrompt, segmentPrompt, input.modelConfig, {
-              temperature: input.temperature,
-              maxOutputTokens: TOKENS_PER_SEGMENT,
-              ...(input.signal ? { signal: input.signal } : {}),
-            })
+          ? this.multiProviderStream.stream(
+              systemPrompt,
+              segmentPrompt,
+              input.modelConfig,
+              {
+                temperature: input.temperature,
+                maxOutputTokens: TOKENS_PER_SEGMENT,
+                ...(input.signal ? { signal: input.signal } : {}),
+              },
+            )
           : this.ai.stream(systemPrompt, segmentPrompt, {
               temperature: input.temperature,
               maxOutputTokens: TOKENS_PER_SEGMENT,
@@ -370,8 +399,14 @@ export class StreamStoryGenerationUseCase {
         if (input.signal?.aborted) break;
 
         prevTail = segmentOutput.slice(-TAIL_CHARS);
-        this.logger.log(`✅ [StoryGen:seg] segment [${seg}/${totalSegments}] — ${segmentOutput.length} chars`);
-        onEvent({ type: 'segment_done', segment: seg, chars: segmentOutput.length });
+        this.logger.log(
+          `✅ [StoryGen:seg] segment [${seg}/${totalSegments}] — ${segmentOutput.length} chars`,
+        );
+        onEvent({
+          type: 'segment_done',
+          segment: seg,
+          chars: segmentOutput.length,
+        });
       }
 
       await persistence.updateRequest(request.id, {
@@ -379,11 +414,19 @@ export class StreamStoryGenerationUseCase {
         output: fullOutput,
       });
 
-      this.logger.log(`✅ [StoryGen:seg] ALL DONE — total: ${fullOutput.length} chars | requestId: ${request.id}`);
-      onEvent({ type: 'done', requestId: request.id, totalChars: fullOutput.length });
+      this.logger.log(
+        `✅ [StoryGen:seg] ALL DONE — total: ${fullOutput.length} chars | requestId: ${request.id}`,
+      );
+      onEvent({
+        type: 'done',
+        requestId: request.id,
+        totalChars: fullOutput.length,
+      });
     } catch (err: unknown) {
       const status =
-        err instanceof Error && err.name === 'AbortError' ? 'canceled' : 'failed';
+        err instanceof Error && err.name === 'AbortError'
+          ? 'canceled'
+          : 'failed';
       const message = err instanceof Error ? err.message : 'Generation failed';
       await persistence.updateRequest(request.id, {
         status,
@@ -450,10 +493,11 @@ ${novel.summary ? `สรุปเรื่อง: ${novel.summary}` : ''}${writ
     if (!history || history.length === 0) return '';
     // Limit to last 10 turns to avoid exceeding context window
     const recent = history.slice(-10);
-    const lines = recent.map((turn) =>
-      turn.role === 'user'
-        ? `ผู้ใช้: ${turn.content}`
-        : `AI: ${turn.content.slice(0, 800)}`, // cap each assistant turn at 800 chars
+    const lines = recent.map(
+      (turn) =>
+        turn.role === 'user'
+          ? `ผู้ใช้: ${turn.content}`
+          : `AI: ${turn.content.slice(0, 800)}`, // cap each assistant turn at 800 chars
     );
     return `[ประวัติการสนทนาก่อนหน้า]\n${lines.join('\n')}\n[/ประวัติการสนทนา]\n\nคำสั่งปัจจุบัน: `;
   }

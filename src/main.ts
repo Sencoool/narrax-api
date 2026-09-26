@@ -1,4 +1,3 @@
-
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
@@ -7,7 +6,13 @@ import { AppModule } from './app.module';
 import { PlotWeaverLogger } from './logger/plot-weaver-logger';
 
 async function bootstrap() {
-  const logger = new PlotWeaverLogger(['log', 'warn', 'error', 'debug', 'verbose']);
+  const logger = new PlotWeaverLogger([
+    'log',
+    'warn',
+    'error',
+    'debug',
+    'verbose',
+  ]);
   const app = await NestFactory.create(AppModule, { logger });
   app.useLogger(logger);
 

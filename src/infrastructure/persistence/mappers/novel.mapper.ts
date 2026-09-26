@@ -37,7 +37,7 @@ export class NovelMapper {
       id: raw.id,
       title: raw.title,
       summary: raw.summary,
-      status: raw.status as NovelStatusValue,
+      status: raw.status,
       authorId: raw.authorId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,

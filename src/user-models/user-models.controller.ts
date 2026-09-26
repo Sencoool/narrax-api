@@ -34,10 +34,7 @@ export class UserModelsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific model configuration' })
-  async getOne(
-    @CurrentUser() user: { id: string },
-    @Param('id') id: string,
-  ) {
+  async getOne(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.service.getOne(user.id, id);
   }
 
@@ -63,10 +60,7 @@ export class UserModelsController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a model configuration' })
-  async remove(
-    @CurrentUser() user: { id: string },
-    @Param('id') id: string,
-  ) {
+  async remove(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     await this.service.delete(user.id, id);
   }
 

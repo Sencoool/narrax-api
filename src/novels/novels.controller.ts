@@ -12,7 +12,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateNovelDto } from './dto/create-novel.dto';
@@ -56,7 +61,7 @@ export class NovelsController {
   @ApiOperation({ summary: 'รายการนิยายทั้งหมด (paginated)' })
   findAll(@Query() query: FindNovelsDto) {
     return this.findNovelsUseCase.execute({
-      status: query.status as any,
+      status: query.status,
       authorId: query.authorId,
       page: query.page,
       limit: query.limit,
@@ -81,7 +86,7 @@ export class NovelsController {
     return this.updateNovelUseCase.execute(id, user.id, {
       title: input.title,
       summary: input.summary,
-      status: input.status as any,
+      status: input.status,
       tags: input.tags,
     });
   }

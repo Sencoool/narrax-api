@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Logger,
-  Post,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Logger, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -78,17 +71,22 @@ export class StoryGenerationStreamController {
     };
 
     // ── Check active model configuration ─────────────────────────────────────
-    const defaultModel = await this.userModelsService.getDefaultForUser(user.id);
+    const defaultModel = await this.userModelsService.getDefaultForUser(
+      user.id,
+    );
     if (!defaultModel) {
       onEvent({
         type: 'error',
-        message: 'No AI model configured. Please go to Settings to configure your AI model before generating.',
+        message:
+          'No AI model configured. Please go to Settings to configure your AI model before generating.',
       });
       res.end();
       return;
     }
 
-    const rawApiKey = defaultModel.apiKey ? decryptApiKey(defaultModel.apiKey) : undefined;
+    const rawApiKey = defaultModel.apiKey
+      ? decryptApiKey(defaultModel.apiKey)
+      : undefined;
     const modelConfig = {
       provider: defaultModel.provider,
       modelName: defaultModel.modelName,
@@ -101,7 +99,9 @@ export class StoryGenerationStreamController {
     // Abort generation the instant the HTTP client disconnects
     res.on('close', () => {
       if (!abortController.signal.aborted) {
-        this.logger.log(`Client disconnected — aborting ${defaultModel.provider} generation`);
+        this.logger.log(
+          `Client disconnected — aborting ${defaultModel.provider} generation`,
+        );
         abortController.abort();
       }
     });

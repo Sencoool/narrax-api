@@ -16,7 +16,11 @@ import { ClearConversationUseCase } from '../application/use-cases/episodes/clea
 
 describe('EpisodesController ownership plumbing', () => {
   let controller: EpisodesController;
-  const useCase = () => ({ execute: jest.fn().mockResolvedValue({ id: 'ep-1', title: 'T', hasContent: () => false }) });
+  const useCase = () => ({
+    execute: jest
+      .fn()
+      .mockResolvedValue({ id: 'ep-1', title: 'T', hasContent: () => false }),
+  });
 
   const mocks = {
     create: useCase(),
@@ -57,7 +61,9 @@ describe('EpisodesController ownership plumbing', () => {
 
   it('passes the caller id into episode update', async () => {
     await controller.update({ id: 'user-1' }, 'ep-1', { title: 'New' });
-    expect(mocks.update.execute).toHaveBeenCalledWith('ep-1', 'user-1', { title: 'New' });
+    expect(mocks.update.execute).toHaveBeenCalledWith('ep-1', 'user-1', {
+      title: 'New',
+    });
   });
 
   it('passes the caller id into episode delete', async () => {
