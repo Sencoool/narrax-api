@@ -24,6 +24,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
@@ -153,16 +154,24 @@ export class EpisodesController {
   }
 
   @Get('novels/:novelId/episodes')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'List episodes' })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
-  findAll(@Param('novelId') novelId: string) {
-    return this.findEpisodesUseCase.execute(novelId);
+  findAll(
+    @CurrentUser() user: { id: string } | undefined,
+    @Param('novelId') novelId: string,
+  ) {
+    return this.findEpisodesUseCase.execute(novelId, user);
   }
 
   @Get('episodes/:id')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get episode by ID' })
-  findOne(@Param('id') id: string) {
-    return this.findOneEpisodeUseCase.execute(id);
+  findOne(
+    @CurrentUser() user: { id: string } | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.findOneEpisodeUseCase.execute(id, user);
   }
 
   @Patch('episodes/:id')

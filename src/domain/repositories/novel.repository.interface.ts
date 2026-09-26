@@ -21,6 +21,11 @@ export interface UpdateNovelData {
 export interface FindNovelsFilter {
   status?: NovelStatusValue;
   authorId?: string;
+  /**
+   * The caller's user id. When set, their own drafts are included alongside
+   * published novels; when absent, only published novels are visible.
+   */
+  includeDraftsFor?: string;
   page: number;
   limit: number;
 }

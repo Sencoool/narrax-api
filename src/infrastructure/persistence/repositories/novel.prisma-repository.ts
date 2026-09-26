@@ -31,12 +31,28 @@ export class PrismaNovelRepository implements INovelRepository {
   }
 
   async findAll(filter: FindNovelsFilter): Promise<PaginatedNovels> {
-    const { status, authorId, page, limit } = filter;
+    const { status, authorId, includeDraftsFor, page, limit } = filter;
     const skip = (page - 1) * limit;
 
+    // Visibility is applied in SQL, not in memory, so pagination cannot leak a
+    // draft: published work is public, and a signed-in caller additionally sees
+    // their own. Requested filters are ANDed on top, which means asking for
+    // `status=draft` anonymously matches nothing instead of everything.
+    const visibility = includeDraftsFor
+      ? {
+          OR: [
+            { status: 'published' as const },
+            { authorId: includeDraftsFor },
+          ],
+        }
+      : { status: 'published' as const };
+
     const where = {
-      ...(status ? { status } : {}),
-      ...(authorId ? { authorId } : {}),
+      AND: [
+        visibility,
+        ...(status ? [{ status }] : []),
+        ...(authorId ? [{ authorId }] : []),
+      ],
     };
 
     const [rows, total] = await Promise.all([

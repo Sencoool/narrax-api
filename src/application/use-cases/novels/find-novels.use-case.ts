@@ -21,10 +21,12 @@ export class FindNovelsUseCase {
     private readonly novelRepo: INovelRepository,
   ) {}
 
-  execute(input: FindNovelsInput): Promise<PaginatedNovels> {
+  execute(input: FindNovelsInput, callerId?: string): Promise<PaginatedNovels> {
     const filter: FindNovelsFilter = {
       status: input.status,
       authorId: input.authorId,
+      // Signed in or not, published work is public; a caller also sees their own.
+      includeDraftsFor: callerId,
       page: input.page,
       limit: input.limit,
     };

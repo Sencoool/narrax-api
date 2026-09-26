@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CreateNovelDto } from './dto/create-novel.dto';
 import { FindNovelsDto } from './dto/find-novels.dto';
 import { UpdateNovelDto } from './dto/update-novel.dto';
@@ -58,20 +59,31 @@ export class NovelsController {
   }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'รายการนิยายทั้งหมด (paginated)' })
-  findAll(@Query() query: FindNovelsDto) {
-    return this.findNovelsUseCase.execute({
-      status: query.status,
-      authorId: query.authorId,
-      page: query.page,
-      limit: query.limit,
-    });
+  findAll(
+    @CurrentUser() user: { id: string } | undefined,
+    @Query() query: FindNovelsDto,
+  ) {
+    return this.findNovelsUseCase.execute(
+      {
+        status: query.status,
+        authorId: query.authorId,
+        page: query.page,
+        limit: query.limit,
+      },
+      user?.id,
+    );
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'ดูรายละเอียดนิยาย' })
-  findOne(@Param('id') id: string) {
-    return this.findOneNovelUseCase.execute(id);
+  findOne(
+    @CurrentUser() user: { id: string } | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.findOneNovelUseCase.execute(id, user);
   }
 
   @Patch(':id')
@@ -103,13 +115,19 @@ export class NovelsController {
   // --- Context ---
 
   @Get(':novelId/context')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'ดู context ของนิยาย',
-    description: 'ตัวละคร, โลก, โครงเรื่อง, สไตล์ที่ AI จะใช้เป็น memory',
+    description:
+      'ตัวละคร, โลก, โครงเรื่อง, สไตล์ที่ AI จะใช้เป็น memory — เฉพาะเจ้าของเรื่อง',
   })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
-  findContext(@Param('novelId') novelId: string) {
-    return this.findNovelContextUseCase.execute(novelId);
+  findContext(
+    @Param('novelId') novelId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.findNovelContextUseCase.execute(novelId, user.id);
   }
 
   @Put(':novelId/context')
