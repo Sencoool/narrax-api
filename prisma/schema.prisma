@@ -64,6 +64,8 @@ model User {
   googleId  String?     @unique
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  /// Every token issued before this instant is rejected. Bumped by POST /auth/logout-all.
+  tokensValidFrom DateTime?
 
   profile   Profile?
   roles     UserRole[]

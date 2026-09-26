@@ -13,6 +13,8 @@ export interface UserProps {
   googleId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Tokens issued before this instant are rejected by JwtStrategy. */
+  tokensValidFrom: Date | null;
 }
 
 export class UserEntity {
@@ -24,6 +26,8 @@ export class UserEntity {
   readonly googleId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  /** Set by "log out everywhere"; every earlier token stops working. */
+  readonly tokensValidFrom: Date | null;
 
   constructor(props: UserProps) {
     this.id = props.id;
@@ -33,6 +37,7 @@ export class UserEntity {
     this.googleId = props.googleId;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
+    this.tokensValidFrom = props.tokensValidFrom;
   }
 
   /** Returns true when the user registered via Google OAuth (no password). */
@@ -49,7 +54,7 @@ export class UserEntity {
    * Returns a safe snapshot of the user — no passwordHash.
    * Use this shape whenever you need a plain object for logging or API response.
    */
-  toSafeObject(): Omit<UserProps, 'passwordHash'> {
+  toSafeObject(): Omit<UserProps, 'passwordHash' | 'tokensValidFrom'> {
     return {
       id: this.id,
       email: this.email,

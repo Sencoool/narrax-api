@@ -20,6 +20,7 @@ export class UserMapper {
       googleId: raw.googleId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
+      tokensValidFrom: raw.tokensValidFrom,
     });
   }
 }

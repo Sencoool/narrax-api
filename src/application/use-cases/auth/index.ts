@@ -4,3 +4,4 @@ export { LoginUseCase } from './login.use-case.js';
 export type { LoginInput } from './login.use-case.js';
 export { ValidateGoogleUserUseCase } from './validate-google-user.use-case.js';
 export type { ValidateGoogleUserInput } from './validate-google-user.use-case.js';
+export { RevokeAllTokensUseCase } from './revoke-all-tokens.use-case.js';

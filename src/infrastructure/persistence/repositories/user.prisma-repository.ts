@@ -59,6 +59,13 @@ export class PrismaUserRepository implements IUserRepository {
     return UserMapper.toDomain(raw);
   }
 
+  async revokeTokens(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { tokensValidFrom: new Date() },
+    });
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.user.delete({ where: { id } });
   }

@@ -24,6 +24,11 @@ export interface IUserRepository {
   findAll(): Promise<UserEntity[]>;
   create(data: CreateUserData): Promise<UserEntity>;
   update(id: string, data: UpdateUserData): Promise<UserEntity>;
+  /**
+   * Invalidates every JWT already issued to this user by stamping
+   * `tokensValidFrom` with the current time.
+   */
+  revokeTokens(id: string): Promise<void>;
   delete(id: string): Promise<void>;
 }
 

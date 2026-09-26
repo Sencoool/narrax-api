@@ -15,6 +15,7 @@ import type { Request, Response } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginUseCase } from '../application/use-cases/auth/login.use-case';
 import { RegisterUseCase } from '../application/use-cases/auth/register.use-case';
+import { RevokeAllTokensUseCase } from '../application/use-cases/auth/revoke-all-tokens.use-case';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -27,6 +28,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly registerUseCase: RegisterUseCase,
     private readonly loginUseCase: LoginUseCase,
+    private readonly revokeAllTokensUseCase: RevokeAllTokensUseCase,
     private readonly configService: ConfigService,
   ) {}
 
@@ -79,5 +81,16 @@ export class AuthController {
     @CurrentUser() user: { id: string; email: string; name: string | null },
   ) {
     return user;
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'ออกจากระบบทุกอุปกรณ์ (ยกเลิก token ที่ออกไปแล้วทั้งหมด)',
+  })
+  async logoutAll(@CurrentUser() user: { id: string }) {
+    await this.revokeAllTokensUseCase.execute(user.id);
+    return { success: true };
   }
 }
