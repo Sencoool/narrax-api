@@ -281,7 +281,7 @@ model StoryGenerationRequest {
   @@index([sourceEpisodeId])
 }
 
-/// RAG: 犹犧≒ｹ・ｸ・chunks 犧もｸｭ犧・ｹ≒ｸ歩ｹ謂ｸ･犧ｰ episode 犧樅ｸ｣犹霞ｸｭ犧｡ vector embedding 犧ｪ犧ｳ犧ｫ犧｣犧ｱ犧・semantic search
+/// RAG: episode chunks with a vector embedding, used for semantic search
 model EpisodeChunk {
   id         String                       @id @default(uuid())
   episodeId  String
@@ -299,7 +299,7 @@ model EpisodeChunk {
   @@index([episodeId])
 }
 
-/// 犧壟ｸｱ犧吭ｸ伶ｸｶ犧・context 犧もｸｭ犧・ｸ吭ｸｴ犧｢犧ｲ犧｢犧ｪ犧ｳ犧ｫ犧｣犧ｱ犧壟ｹ・ｸ癌ｹ霞ｹ犧巵ｹ・ｸ・system prompt 犧もｸｭ犧・AI
+/// The story context the author defines; injected into the AI system prompt
 model NovelContext {
   id            String   @id @default(uuid())
   novelId       String   @unique
@@ -307,9 +307,9 @@ model NovelContext {
   characters    String?  @db.Text
   /// JSON: { setting, time, locations }
   worldBuilding String?  @db.Text
-  /// 犹もｸ・ｸ｣犧・ｹ犧｣犧ｷ犹謂ｸｭ犧・ｸｫ犧･犧ｱ犧・/ outline
+/// Main plot thread / outline
   plotOutline   String?  @db.Text
-  /// 犧・ｸｳ犧ｭ犧倨ｸｴ犧壟ｸｲ犧｢ style 犧≒ｸｲ犧｣犹犧もｸｵ犧｢犧・犹犧癌ｹ謂ｸ・"犧壟ｸ｣犧｣犧｢犧ｲ犧｢犧･犧ｰ犹犧ｭ犧ｵ犧｢犧・ 犧壟ｸ伶ｸｪ犧吭ｸ伶ｸ吭ｸｲ犧ｪ犧ｱ犹霞ｸ・
+/// Writing style -- the author's voice: phrasing they prefer, terms to avoid
   writingStyle  String?  @db.Text
   updatedAt     DateTime @updatedAt
 
