@@ -40,6 +40,8 @@ import { ChunkAndEmbedUseCase } from '../application/use-cases/rag/chunk-and-emb
 import { GetConversationUseCase } from '../application/use-cases/episodes/get-conversation.use-case';
 import { AppendConversationMessageUseCase } from '../application/use-cases/episodes/append-conversation-message.use-case';
 import { ClearConversationUseCase } from '../application/use-cases/episodes/clear-conversation.use-case';
+import { FindEpisodeRevisionsUseCase } from '../application/use-cases/episodes/find-episode-revisions.use-case';
+import { RestoreEpisodeRevisionUseCase } from '../application/use-cases/episodes/restore-episode-revision.use-case';
 import { Logger } from '@nestjs/common';
 
 @ApiTags('episodes')
@@ -60,6 +62,8 @@ export class EpisodesController {
     private readonly getConversationUseCase: GetConversationUseCase,
     private readonly appendConversationMessageUseCase: AppendConversationMessageUseCase,
     private readonly clearConversationUseCase: ClearConversationUseCase,
+    private readonly findEpisodeRevisionsUseCase: FindEpisodeRevisionsUseCase,
+    private readonly restoreEpisodeRevisionUseCase: RestoreEpisodeRevisionUseCase,
   ) {}
 
   @Post('novels/:novelId/episodes')
@@ -271,6 +275,38 @@ export class EpisodesController {
     @Param('id') episodeId: string,
   ) {
     await this.clearConversationUseCase.execute(episodeId, user.id);
+  }
+
+  //  Episode Revisions
+
+  @Get('episodes/:id/revisions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'ดูประวัติเวอร์ชันของตอน (ใหม่สุดก่อน)' })
+  @ApiParam({ name: 'id', description: 'Episode UUID' })
+  async getEpisodeRevisions(
+    @CurrentUser() user: { id: string },
+    @Param('id') episodeId: string,
+  ) {
+    return this.findEpisodeRevisionsUseCase.execute(episodeId, user.id);
+  }
+
+  @Post('episodes/:id/revisions/:revisionId/restore')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'กู้คืนตอนจากเวอร์ชันที่เก็บไว้' })
+  @ApiParam({ name: 'id', description: 'Episode UUID' })
+  @ApiParam({ name: 'revisionId', description: 'EpisodeRevision UUID' })
+  async restoreEpisodeRevision(
+    @CurrentUser() user: { id: string },
+    @Param('id') episodeId: string,
+    @Param('revisionId') revisionId: string,
+  ) {
+    return this.restoreEpisodeRevisionUseCase.execute({
+      episodeId,
+      revisionId,
+      userId: user.id,
+    });
   }
 
   private triggerSummaryGeneration(

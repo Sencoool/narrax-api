@@ -13,6 +13,8 @@ import { FileParserService } from './file-parser.service';
 import { GetConversationUseCase } from '../application/use-cases/episodes/get-conversation.use-case';
 import { AppendConversationMessageUseCase } from '../application/use-cases/episodes/append-conversation-message.use-case';
 import { ClearConversationUseCase } from '../application/use-cases/episodes/clear-conversation.use-case';
+import { FindEpisodeRevisionsUseCase } from '../application/use-cases/episodes/find-episode-revisions.use-case';
+import { RestoreEpisodeRevisionUseCase } from '../application/use-cases/episodes/restore-episode-revision.use-case';
 
 describe('EpisodesController ownership plumbing', () => {
   let controller: EpisodesController;
@@ -31,6 +33,9 @@ describe('EpisodesController ownership plumbing', () => {
     remove: useCase(),
     summary: useCase(),
     embed: useCase(),
+    conversation: useCase(),
+    revisions: useCase(),
+    restoreRevision: useCase(),
   };
 
   beforeEach(async () => {
@@ -46,9 +51,14 @@ describe('EpisodesController ownership plumbing', () => {
         { provide: GenerateEpisodeSummaryUseCase, useValue: mocks.summary },
         { provide: ChunkAndEmbedUseCase, useValue: mocks.embed },
         { provide: FileParserService, useValue: { extractText: jest.fn() } },
-        { provide: GetConversationUseCase, useValue: useCase() },
+        { provide: GetConversationUseCase, useValue: mocks.conversation },
         { provide: AppendConversationMessageUseCase, useValue: useCase() },
         { provide: ClearConversationUseCase, useValue: useCase() },
+        { provide: FindEpisodeRevisionsUseCase, useValue: mocks.revisions },
+        {
+          provide: RestoreEpisodeRevisionUseCase,
+          useValue: mocks.restoreRevision,
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -73,6 +83,20 @@ describe('EpisodesController ownership plumbing', () => {
 
   it('passes the caller id into conversation lookup', async () => {
     await controller.getConversation({ id: 'user-1' }, 'ep-1');
-    expect(mocks.update.execute).not.toHaveBeenCalled();
+    expect(mocks.conversation.execute).toHaveBeenCalledWith('ep-1', 'user-1');
+  });
+
+  it('passes the caller id into the revision list', async () => {
+    await controller.getEpisodeRevisions({ id: 'user-1' }, 'ep-1');
+    expect(mocks.revisions.execute).toHaveBeenCalledWith('ep-1', 'user-1');
+  });
+
+  it('passes the caller id into a revision restore', async () => {
+    await controller.restoreEpisodeRevision({ id: 'user-1' }, 'ep-1', 'rev-1');
+    expect(mocks.restoreRevision.execute).toHaveBeenCalledWith({
+      episodeId: 'ep-1',
+      revisionId: 'rev-1',
+      userId: 'user-1',
+    });
   });
 });

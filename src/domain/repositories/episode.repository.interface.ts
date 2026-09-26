@@ -27,6 +27,17 @@ export interface CreateEpisodeRevisionData {
   cast: string[];
 }
 
+/** A stored snapshot, as read back for the history panel. */
+export interface EpisodeRevisionItem {
+  id: string;
+  episodeId: string;
+  title: string;
+  content: string;
+  order: number;
+  cast: string[];
+  createdAt: Date;
+}
+
 /** Lightweight summary returned in list endpoints — omits heavy `content` field. */
 export interface EpisodeSummaryItem {
   id: string;
@@ -53,6 +64,10 @@ export interface IEpisodeRepository {
   createRevision(data: CreateEpisodeRevisionData): Promise<void>;
   /** Deletes all but the newest `keep` revisions; returns how many were removed. */
   pruneRevisions(episodeId: string, keep: number): Promise<number>;
+  /** Stored snapshots for an episode, newest first. */
+  findRevisions(episodeId: string): Promise<EpisodeRevisionItem[]>;
+  /** One snapshot, for restore. Null when it does not exist. */
+  findRevision(revisionId: string): Promise<EpisodeRevisionItem | null>;
   delete(id: string): Promise<void>;
 }
 

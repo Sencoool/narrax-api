@@ -13,3 +13,7 @@ export { GetConversationUseCase } from './get-conversation.use-case.js';
 export { AppendConversationMessageUseCase } from './append-conversation-message.use-case.js';
 export type { AppendConversationMessageInput } from './append-conversation-message.use-case.js';
 export { ClearConversationUseCase } from './clear-conversation.use-case.js';
+export { FindEpisodeRevisionsUseCase } from './find-episode-revisions.use-case.js';
+export { RestoreEpisodeRevisionUseCase } from './restore-episode-revision.use-case.js';
+export type { RestoreEpisodeRevisionInput } from './restore-episode-revision.use-case.js';
+export { MAX_REVISIONS_PER_EPISODE } from './update-episode.use-case.js';
