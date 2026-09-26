@@ -53,23 +53,29 @@ export class BuildRagContextUseCase {
   ): Promise<BuildRagContextResult> {
     this.logger.log(`🏗️  [RAG:context] Building context for novelId: ${novelId}`);
 
-    // Run embedding + context fetch concurrently
-    const [queryEmbedding, novelContext] = await Promise.all([
-      this.ai.generateEmbedding(ragQuery),
-      this.novelRepo.findContext(novelId),
-    ]);
+    // Fetch novel metadata first — it never depends on the embedding provider.
+    const novelContext = await this.novelRepo.findContext(novelId);
 
-    this.logger.log(`🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`);
+    // Embedding is a local-Ollama dependency. If it is unavailable we degrade to
+    // metadata-only context rather than failing the whole generation.
+    let relevantChunks: string[] = [];
+    try {
+      const queryEmbedding = await this.ai.generateEmbedding(ragQuery);
+      this.logger.log(`🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`);
 
-    // Retrieve relevant chunks via cosine distance
-    const relevantChunks = await this.chunkRepo.findSimilar({
-      novelId,
-      queryEmbedding,
-      topK,
-      distanceThreshold: this.COSINE_DISTANCE_THRESHOLD,
-    });
-
-    this.logger.log(`🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`);
+      relevantChunks = await this.chunkRepo.findSimilar({
+        novelId,
+        queryEmbedding,
+        topK,
+        distanceThreshold: this.COSINE_DISTANCE_THRESHOLD,
+      });
+      this.logger.log(`🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `🔎 [RAG:search] embedding unavailable, continuing without chunk retrieval: ${message}`,
+      );
+    }
 
     const contextParts: string[] = [];
 

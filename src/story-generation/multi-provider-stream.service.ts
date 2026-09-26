@@ -1,6 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { GenerateOptions } from '../application/ports/ai-provider.port.js';
 
+/** Hard ceiling on a single upstream model request. */
+const PROVIDER_TIMEOUT_MS = 120_000;
+
+/** Combines the caller's abort signal with a provider timeout. */
+function withTimeout(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(PROVIDER_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
 export interface ActiveModelConfig {
   provider: 'openai' | 'anthropic' | 'google' | 'mistral' | 'ollama' | 'custom';
   modelName: string;
@@ -86,7 +95,7 @@ export class MultiProviderStreamService {
           num_predict: maxTokens,
         },
       }),
-      signal,
+      signal: withTimeout(signal),
     });
 
     if (!res.ok) {
@@ -115,6 +124,17 @@ export class MultiProviderStreamService {
         } catch {
           // ignore parse errors on incomplete chunks
         }
+      }
+    }
+
+    // Flush any trailing fragment that did not end with \n
+    if (buffer.trim()) {
+      try {
+        const json = JSON.parse(buffer);
+        const chunk = json.message?.content;
+        if (chunk) yield chunk;
+      } catch {
+        // ignore trailing fragment that is not valid JSON
       }
     }
   }
@@ -149,7 +169,7 @@ export class MultiProviderStreamService {
         max_tokens: maxTokens,
         stream: true,
       }),
-      signal,
+      signal: withTimeout(signal),
     });
 
     if (!res.ok) {
@@ -183,6 +203,19 @@ export class MultiProviderStreamService {
         }
       }
     }
+
+    // Flush any trailing data: line that did not end with \n
+    if (buffer.trim().startsWith('data:')) {
+      const dataStr = buffer.trim().replace(/^data:\s*/, '');
+      if (dataStr !== '[DONE]') {
+        try {
+          const delta = JSON.parse(dataStr).choices?.[0]?.delta?.content;
+          if (delta) yield delta;
+        } catch {
+          // ignore trailing fragment that is not valid JSON
+        }
+      }
+    }
   }
 
   // ─── Anthropic ──────────────────────────────────────────────────────────────
@@ -210,7 +243,7 @@ export class MultiProviderStreamService {
         max_tokens: maxTokens,
         stream: true,
       }),
-      signal,
+      signal: withTimeout(signal),
     });
 
     if (!res.ok) {
@@ -244,6 +277,18 @@ export class MultiProviderStreamService {
         }
       }
     }
+
+    // Flush any trailing data: line that did not end with \n
+    if (buffer.trim().startsWith('data:')) {
+      try {
+        const json = JSON.parse(buffer.trim().replace(/^data:\s*/, ''));
+        if (json.type === 'content_block_delta' && json.delta?.text) {
+          yield json.delta.text;
+        }
+      } catch {
+        // ignore trailing fragment that is not valid JSON
+      }
+    }
   }
 
   // ─── Google Gemini ──────────────────────────────────────────────────────────
@@ -271,7 +316,7 @@ export class MultiProviderStreamService {
           maxOutputTokens: maxTokens,
         },
       }),
-      signal,
+      signal: withTimeout(signal),
     });
 
     if (!res.ok) {
@@ -306,6 +351,19 @@ export class MultiProviderStreamService {
         } catch {
           // ignore chunk parse errors
         }
+      }
+    }
+
+    // Flush any trailing data: line that did not end with \n
+    if (buffer.trim().startsWith('data:')) {
+      try {
+        const parts = JSON.parse(buffer.trim().replace(/^data:\s*/, ''))
+          .candidates?.[0]?.content?.parts;
+        if (Array.isArray(parts)) {
+          for (const part of parts) if (part.text) yield part.text;
+        }
+      } catch {
+        // ignore trailing fragment that is not valid JSON
       }
     }
   }
