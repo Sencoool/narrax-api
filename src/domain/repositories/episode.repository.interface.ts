@@ -18,6 +18,15 @@ export interface UpdateEpisodeData {
   cast?: string[];
 }
 
+/** Snapshot written before an update overwrites an episode's text. */
+export interface CreateEpisodeRevisionData {
+  episodeId: string;
+  title: string;
+  content: string;
+  order: number;
+  cast: string[];
+}
+
 /** Lightweight summary returned in list endpoints — omits heavy `content` field. */
 export interface EpisodeSummaryItem {
   id: string;
@@ -40,6 +49,10 @@ export interface IEpisodeRepository {
   findLastOrderByNovelId(novelId: string): Promise<number>;
   create(data: CreateEpisodeData): Promise<EpisodeEntity>;
   update(id: string, data: UpdateEpisodeData): Promise<EpisodeEntity>;
+  /** Writes a snapshot of an episode's content, as it was before the update. */
+  createRevision(data: CreateEpisodeRevisionData): Promise<void>;
+  /** Deletes all but the newest `keep` revisions; returns how many were removed. */
+  pruneRevisions(episodeId: string, keep: number): Promise<number>;
   delete(id: string): Promise<void>;
 }
 

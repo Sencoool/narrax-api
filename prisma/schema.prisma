@@ -149,8 +149,26 @@ model Episode {
   /// Generation requests that used this episode as their source/seed content
   generationRequests StoryGenerationRequest[]
   conversationMessages ConversationMessage[]
+  revisions          EpisodeRevision[]
 
   @@unique([novelId, order])
+}
+
+/// Point-in-time snapshot of an episode, written before each content-changing
+/// update so an accidental overwrite or select-all-delete can be recovered.
+/// Pruned to the newest few per episode — see MAX_REVISIONS_PER_EPISODE.
+model EpisodeRevision {
+  id        String   @id @default(uuid())
+  episodeId String
+  title     String
+  content   String   @db.Text
+  order     Int
+  cast      String[] @default([])
+  createdAt DateTime @default(now())
+
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, createdAt])
 }
 
 model Comment {

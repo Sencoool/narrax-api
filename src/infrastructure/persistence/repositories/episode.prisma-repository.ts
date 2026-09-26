@@ -4,6 +4,7 @@ import type {
   IEpisodeRepository,
   CreateEpisodeData,
   UpdateEpisodeData,
+  CreateEpisodeRevisionData,
   EpisodeSummaryItem,
 } from '../../../domain/repositories/episode.repository.interface.js';
 import { EpisodeEntity } from '../../../domain/entities/episode.entity.js';
@@ -84,6 +85,36 @@ export class PrismaEpisodeRepository implements IEpisodeRepository {
       },
     });
     return EpisodeMapper.toDomain(raw);
+  }
+
+  async createRevision(data: CreateEpisodeRevisionData): Promise<void> {
+    await this.prisma.episodeRevision.create({
+      data: {
+        episodeId: data.episodeId,
+        title: data.title,
+        content: data.content,
+        order: data.order,
+        cast: data.cast,
+      },
+    });
+  }
+
+  async pruneRevisions(episodeId: string, keep: number): Promise<number> {
+    const newest = await this.prisma.episodeRevision.findMany({
+      where: { episodeId },
+      orderBy: { createdAt: 'desc' },
+      take: keep,
+      select: { id: true },
+    });
+
+    const { count } = await this.prisma.episodeRevision.deleteMany({
+      where: {
+        episodeId,
+        id: { notIn: newest.map((revision) => revision.id) },
+      },
+    });
+
+    return count;
   }
 
   async delete(id: string): Promise<void> {
