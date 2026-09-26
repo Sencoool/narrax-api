@@ -1,0 +1,83 @@
+name: Deploy dev
+
+# Dev is the first stop. Pushing here builds and verifies the API, keeps the
+# build as an artifact, and then hands off to the host -- but only if a host is
+# configured. No production workflow exists yet, so nothing can reach prod.
+#
+# The hand-off is a deploy-hook URL, because that is the one mechanism every
+# candidate host shares: Render Deploy Hook, Railway, Fly, a VPS-side webhook,
+# anything that redeploys on a POST. The host runs its own build and release
+# steps, and those are where the database migration belongs:
+#
+#   build command  : npm ci && npx prisma generate && npm run build
+#   release command: npx prisma migrate deploy
+#
+# Run migrations on the host, not here: this runner cannot reach the dev
+# database. A migration that has not been applied makes the deploy fail loudly
+# on the host, which is the behaviour you want.
+#
+# To enable it: Settings -> Secrets and variables -> Actions -> add
+#   DEV_DEPLOY_HOOK_URL    (the hook URL your host gives you)
+# Until then the deploy job reports a notice and succeeds, so dev stays green
+# while the host is still being chosen.
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload the build
+        uses: actions/upload-artifact@v4
+        with:
+          name: narrax-api-dist
+          path: dist
+          retention-days: 7
+
+  deploy:
+    name: Deploy to dev
+    needs: build
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Trigger the dev deploy
+        env:
+          DEV_DEPLOY_HOOK_URL: ${{ secrets.DEV_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEV_DEPLOY_HOOK_URL" ]; then
+            echo "::notice title=Deploy skipped::DEV_DEPLOY_HOOK_URL is not set, so dev was only built. Add the secret to deploy automatically."
+            exit 0
+          fi
+          echo "Calling the dev deploy hook..."
+          curl -fsS -X POST "$DEV_DEPLOY_HOOK_URL"
+          echo "The host accepted the deploy hook; it will build, migrate and release from dev."
