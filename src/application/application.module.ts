@@ -5,6 +5,7 @@ import { InfrastructureModule } from '../infrastructure/infrastructure.module.js
 import { RegisterUseCase } from './use-cases/auth/register.use-case.js';
 import { LoginUseCase } from './use-cases/auth/login.use-case.js';
 import { ValidateGoogleUserUseCase } from './use-cases/auth/validate-google-user.use-case.js';
+import { RevokeAllTokensUseCase } from './use-cases/auth/revoke-all-tokens.use-case.js';
 
 // ── Users ────────────────────────────────────────────────────────────────────
 import { FindAllUsersUseCase } from './use-cases/users/find-all-users.use-case.js';
@@ -50,6 +51,7 @@ const USE_CASES = [
   RegisterUseCase,
   LoginUseCase,
   ValidateGoogleUserUseCase,
+  RevokeAllTokensUseCase,
   // Users
   FindAllUsersUseCase,
   FindOneUserUseCase,
