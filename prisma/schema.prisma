@@ -13,6 +13,16 @@ datasource db {
   extensions = [vector]
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reserved, NOT yet wired. `Profile`, `Role`, `UserRole`, `Comment`, `Review`,
+// `Follow`, `Bookmark`, `MediaAsset` and the `CommentTargetType` / `MediaType` /
+// `RoleName` enums have zero references in `src/` — verified 2026-09-26. They are
+// kept deliberately as the shape of planned features (following, commenting,
+// bookmarking, reviews, media). Admin access is gated by the `ADMIN_EMAILS`
+// allowlist in `src/auth/guards/admin.guard.ts`, NOT by `Role`/`UserRole`.
+// Do not drop them without a product decision; do not assume they are live.
+// ─────────────────────────────────────────────────────────────────────────────
+
 enum NovelStatus {
   draft
   unpublished
