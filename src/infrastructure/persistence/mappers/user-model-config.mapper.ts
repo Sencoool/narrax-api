@@ -1,8 +1,5 @@
 import type { UserModelConfig as PrismaUserModelConfig } from '@prisma/client';
-import {
-  UserModelConfigEntity,
-  type ModelProviderType,
-} from '../../../domain/entities/user-model-config.entity.js';
+import { UserModelConfigEntity } from '../../../domain/entities/user-model-config.entity.js';
 
 export class UserModelConfigMapper {
   static toDomain(raw: PrismaUserModelConfig): UserModelConfigEntity {

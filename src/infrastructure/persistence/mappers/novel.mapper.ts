@@ -6,7 +6,6 @@ import type {
 } from '@prisma/client';
 import { NovelEntity } from '../../../domain/entities/novel.entity.js';
 import type { NovelContextProps } from '../../../domain/entities/novel.entity.js';
-import type { NovelStatusValue } from '../../../domain/value-objects/novel-status.vo.js';
 
 /** The Prisma shape returned by novel queries that include tags and context. */
 type PrismaNovelWithRelations = PrismaNovel & {

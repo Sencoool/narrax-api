@@ -6,6 +6,13 @@ import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.
 import type { IAiProvider } from '../../ports/ai-provider.port.js';
 import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
 
+/** Shape of one entry in NovelContext.characters (stored as a JSON string). */
+interface CastCharacter {
+  name?: string;
+  role?: string;
+  description?: string;
+}
+
 /** The fields from NovelContext that are used to build the AI context string. */
 interface NovelContextFields {
   characters: string | null;
@@ -97,17 +104,16 @@ export class BuildRagContextUseCase {
         let value = novelContext[key];
         if (key === 'characters' && value && cast && cast.length > 0) {
           try {
-            const parsed = JSON.parse(value);
+            const parsed = JSON.parse(value) as unknown;
             if (Array.isArray(parsed)) {
               const castSet = new Set(cast.map((c) => c.toLowerCase()));
-              const filtered = parsed.filter(
-                (item: any) =>
-                  item?.name && castSet.has(String(item.name).toLowerCase()),
+              const filtered = (parsed as CastCharacter[]).filter(
+                (item) => !!item?.name && castSet.has(item.name.toLowerCase()),
               );
               if (filtered.length > 0) {
                 value = filtered
                   .map(
-                    (c: any) =>
+                    (c) =>
                       `- ${c.name}${c.role ? ` (${c.role})` : ''}${c.description ? `: ${c.description}` : ''}`,
                   )
                   .join('\n');

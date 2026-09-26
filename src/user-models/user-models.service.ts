@@ -16,6 +16,7 @@ import {
 import type { CreateUserModelDto } from './dto/create-user-model.dto.js';
 import type { UpdateUserModelDto } from './dto/update-user-model.dto.js';
 import type { TestUserModelDto } from './dto/test-user-model.dto.js';
+import { getErrorMessage } from '../common/get-error-message.js';
 import type { UserModelConfigEntity } from '../domain/entities/user-model-config.entity.js';
 import { assertSafeBaseUrl } from './validate-base-url.js';
 
@@ -310,12 +311,13 @@ export class UserModelsService {
         };
       }
 
-      throw new BadRequestException(`Unsupported provider: ${provider}`);
-    } catch (err: any) {
+      const unsupported: string = provider;
+      throw new BadRequestException(`Unsupported provider: ${unsupported}`);
+    } catch (err: unknown) {
       return {
         success: false,
         latencyMs: Date.now() - start,
-        error: err?.message || 'Connection test failed',
+        error: getErrorMessage(err, 'Connection test failed'),
       };
     } finally {
       clearTimeout(timeout);

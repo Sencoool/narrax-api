@@ -8,11 +8,6 @@ import type {
 // ─── Log helpers ─────────────────────────────────────────────────────────────
 
 const SEP = '─'.repeat(64);
-const SEP_THIN = '┄'.repeat(64);
-
-function logBlock(logger: Logger, label: string, content: string): void {
-  logger.verbose(`${SEP}\n[${label}]\n${SEP_THIN}\n${content}\n${SEP}`);
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -7,7 +7,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  Query,
   Patch,
   Post,
   UploadedFile,

@@ -21,6 +21,26 @@ export interface StreamOptions extends GenerateOptions {
   signal?: AbortSignal;
 }
 
+// Minimal shapes of the streaming payloads we read. JSON.parse returns `any`, so
+// each parse site asserts one of these instead of leaking `any` through the
+// member accesses (and keeps the eslint typed-lint rules quiet).
+interface OllamaStreamChunk {
+  message?: { content?: string };
+}
+
+interface OpenAiStreamChunk {
+  choices?: Array<{ delta?: { content?: string } }>;
+}
+
+interface AnthropicStreamChunk {
+  type?: string;
+  delta?: { text?: string };
+}
+
+interface GeminiStreamChunk {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+}
+
 @Injectable()
 export class MultiProviderStreamService {
   private readonly logger = new Logger(MultiProviderStreamService.name);
@@ -99,8 +119,12 @@ export class MultiProviderStreamService {
           signal,
         );
         break;
-      default:
-        throw new Error(`Unsupported model provider: ${provider}`);
+      default: {
+        // All known providers are handled above, so `provider` narrows to never
+        // here; widen it explicitly for the error message.
+        const unsupported: string = provider;
+        throw new Error(`Unsupported model provider: ${unsupported}`);
+      }
     }
   }
 
@@ -153,7 +177,7 @@ export class MultiProviderStreamService {
       for (const line of lines) {
         if (!line.trim()) continue;
         try {
-          const json = JSON.parse(line);
+          const json = JSON.parse(line) as OllamaStreamChunk;
           const chunk = json.message?.content;
           if (chunk) yield chunk;
         } catch {
@@ -165,7 +189,7 @@ export class MultiProviderStreamService {
     // Flush any trailing fragment that did not end with \n
     if (buffer.trim()) {
       try {
-        const json = JSON.parse(buffer);
+        const json = JSON.parse(buffer) as OllamaStreamChunk;
         const chunk = json.message?.content;
         if (chunk) yield chunk;
       } catch {
@@ -234,7 +258,7 @@ export class MultiProviderStreamService {
         const dataStr = trimmed.replace(/^data:\s*/, '');
         if (dataStr === '[DONE]') return;
         try {
-          const json = JSON.parse(dataStr);
+          const json = JSON.parse(dataStr) as OpenAiStreamChunk;
           const delta = json.choices?.[0]?.delta?.content;
           if (delta) yield delta;
         } catch {
@@ -248,7 +272,8 @@ export class MultiProviderStreamService {
       const dataStr = buffer.trim().replace(/^data:\s*/, '');
       if (dataStr !== '[DONE]') {
         try {
-          const delta = JSON.parse(dataStr).choices?.[0]?.delta?.content;
+          const delta = (JSON.parse(dataStr) as OpenAiStreamChunk).choices?.[0]
+            ?.delta?.content;
           if (delta) yield delta;
         } catch {
           // ignore trailing fragment that is not valid JSON
@@ -307,7 +332,7 @@ export class MultiProviderStreamService {
         if (!trimmed || !trimmed.startsWith('data:')) continue;
         const dataStr = trimmed.replace(/^data:\s*/, '');
         try {
-          const json = JSON.parse(dataStr);
+          const json = JSON.parse(dataStr) as AnthropicStreamChunk;
           if (json.type === 'content_block_delta' && json.delta?.text) {
             yield json.delta.text;
           }
@@ -320,7 +345,9 @@ export class MultiProviderStreamService {
     // Flush any trailing data: line that did not end with \n
     if (buffer.trim().startsWith('data:')) {
       try {
-        const json = JSON.parse(buffer.trim().replace(/^data:\s*/, ''));
+        const json = JSON.parse(
+          buffer.trim().replace(/^data:\s*/, ''),
+        ) as AnthropicStreamChunk;
         if (json.type === 'content_block_delta' && json.delta?.text) {
           yield json.delta.text;
         }
@@ -380,7 +407,7 @@ export class MultiProviderStreamService {
         if (!trimmed || !trimmed.startsWith('data:')) continue;
         const dataStr = trimmed.replace(/^data:\s*/, '');
         try {
-          const json = JSON.parse(dataStr);
+          const json = JSON.parse(dataStr) as GeminiStreamChunk;
           const parts = json.candidates?.[0]?.content?.parts;
           if (Array.isArray(parts)) {
             for (const part of parts) {
@@ -396,8 +423,11 @@ export class MultiProviderStreamService {
     // Flush any trailing data: line that did not end with \n
     if (buffer.trim().startsWith('data:')) {
       try {
-        const parts = JSON.parse(buffer.trim().replace(/^data:\s*/, ''))
-          .candidates?.[0]?.content?.parts;
+        const parts = (
+          JSON.parse(
+            buffer.trim().replace(/^data:\s*/, ''),
+          ) as GeminiStreamChunk
+        ).candidates?.[0]?.content?.parts;
         if (Array.isArray(parts)) {
           for (const part of parts) if (part.text) yield part.text;
         }

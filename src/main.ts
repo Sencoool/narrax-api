@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
-import type { Application, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { PlotWeaverLogger } from './logger/plot-weaver-logger';
 
