@@ -118,14 +118,14 @@ export class NovelsController {
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   upsertContext(
     @Param('novelId') novelId: string,
+    @CurrentUser() user: { id: string },
     @Body() input: UpsertNovelContextDto,
   ) {
-    // Serialize characters array to JSON string (matches existing API contract)
     const characters = input.characters
       ? JSON.stringify(input.characters)
       : undefined;
 
-    return this.upsertNovelContextUseCase.execute(novelId, {
+    return this.upsertNovelContextUseCase.execute(novelId, user.id, {
       characters,
       worldBuilding: input.worldBuilding,
       plotOutline: input.plotOutline,

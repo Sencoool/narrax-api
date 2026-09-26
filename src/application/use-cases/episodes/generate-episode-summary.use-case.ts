@@ -4,10 +4,8 @@ import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.reposit
 import type { IAiProvider } from '../../ports/ai-provider.port.js';
 import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
 import { EpisodeEntity } from '../../../domain/entities/episode.entity.js';
-import {
-  DomainNotFoundError,
-  DomainValidationError,
-} from '../../../domain/errors/domain-errors.js';
+import { DomainValidationError } from '../../../domain/errors/domain-errors.js';
+import { EnsureEpisodeOwnershipUseCase } from './ensure-episode-ownership.use-case.js';
 
 /**
  * Generates (or re-generates) an AI episode summary and persists it.
@@ -25,13 +23,11 @@ export class GenerateEpisodeSummaryUseCase {
     private readonly episodeRepo: IEpisodeRepository,
     @Inject(AI_PROVIDER)
     private readonly ai: IAiProvider,
+    private readonly ensureEpisodeOwnership: EnsureEpisodeOwnershipUseCase,
   ) {}
 
-  async execute(id: string): Promise<EpisodeEntity> {
-    const episode = await this.episodeRepo.findById(id);
-    if (!episode) {
-      throw new DomainNotFoundError('ตอน', id);
-    }
+  async execute(id: string, userId: string): Promise<EpisodeEntity> {
+    const episode = await this.ensureEpisodeOwnership.execute(id, userId);
     if (!episode.hasContent()) {
       throw new DomainValidationError(
         `ตอนนี้ยังไม่มีเนื้อหา ไม่สามารถสร้าง summary ได้`,

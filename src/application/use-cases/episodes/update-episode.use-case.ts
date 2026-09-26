@@ -3,7 +3,7 @@ import type { IEpisodeRepository } from '../../../domain/repositories/episode.re
 import type { UpdateEpisodeData } from '../../../domain/repositories/episode.repository.interface.js';
 import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
 import { EpisodeEntity } from '../../../domain/entities/episode.entity.js';
-import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
+import { EnsureEpisodeOwnershipUseCase } from './ensure-episode-ownership.use-case.js';
 
 export interface UpdateEpisodeInput {
   title?: string;
@@ -26,13 +26,12 @@ export class UpdateEpisodeUseCase {
   constructor(
     @Inject(EPISODE_REPOSITORY)
     private readonly episodeRepo: IEpisodeRepository,
+    private readonly ensureEpisodeOwnership: EnsureEpisodeOwnershipUseCase,
   ) {}
 
-  async execute(id: string, input: UpdateEpisodeInput): Promise<EpisodeEntity> {
-    const existing = await this.episodeRepo.findById(id);
-    if (!existing) {
-      throw new DomainNotFoundError('ตอน', id);
-    }
+  async execute(id: string, userId: string, input: UpdateEpisodeInput): Promise<EpisodeEntity> {
+    // Throws DomainNotFoundError (404) or DomainForbiddenError (403)
+    await this.ensureEpisodeOwnership.execute(id, userId);
 
     const data: UpdateEpisodeData = {
       title: input.title,

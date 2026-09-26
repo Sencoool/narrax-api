@@ -69,10 +69,11 @@ export class EpisodesController {
   @ApiOperation({ summary: 'Create episode' })
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   async create(
+    @CurrentUser() user: { id: string },
     @Param('novelId') novelId: string,
     @Body() input: CreateEpisodeDto,
   ) {
-    const episode = await this.createEpisodeUseCase.execute(novelId, {
+    const episode = await this.createEpisodeUseCase.execute(novelId, user.id, {
       title: input.title,
       order: input.order,
       isPublished: input.isPublished,
@@ -83,7 +84,7 @@ export class EpisodesController {
     // Fire-and-forget: embed + summary
     this.triggerEmbedding(episode.id, episode.title);
     if (episode.hasContent()) {
-      this.triggerSummaryGeneration(episode.id, episode.title);
+      this.triggerSummaryGeneration(episode.id, episode.title, user.id);
     }
 
     return episode;
@@ -121,6 +122,7 @@ export class EpisodesController {
     description: 'Episode created. AI summary + embedding runs in background',
   })
   async uploadContent(
+    @CurrentUser() user: { id: string },
     @Param('novelId') novelId: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() { title, order }: { title: string; order: number },
@@ -134,6 +136,7 @@ export class EpisodesController {
 
     const episode = await this.uploadEpisodeContentUseCase.execute({
       novelId,
+      userId: user.id,
       text,
       title: title ?? null,
       order,
@@ -141,7 +144,7 @@ export class EpisodesController {
 
     // Fire-and-forget: embed + summary
     this.triggerEmbedding(episode.id, episode.title);
-    this.triggerSummaryGeneration(episode.id, episode.title);
+    this.triggerSummaryGeneration(episode.id, episode.title, user.id);
 
     return episode;
   }
@@ -163,8 +166,12 @@ export class EpisodesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update episode' })
-  async update(@Param('id') id: string, @Body() input: UpdateEpisodeDto) {
-    const episode = await this.updateEpisodeUseCase.execute(id, {
+  async update(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Body() input: UpdateEpisodeDto,
+  ) {
+    const episode = await this.updateEpisodeUseCase.execute(id, user.id, {
       title: input.title,
       content: input.content,
       order: input.order,
@@ -175,7 +182,7 @@ export class EpisodesController {
     // Re-embed and re-summarise if content changed
     if (input.content) {
       this.triggerEmbedding(episode.id, episode.title);
-      this.triggerSummaryGeneration(episode.id, episode.title);
+      this.triggerSummaryGeneration(episode.id, episode.title, user.id);
     }
 
     return episode;
@@ -187,8 +194,11 @@ export class EpisodesController {
   @ApiOperation({ summary: 'Generate AI episode summary' })
   @ApiParam({ name: 'id', description: 'Episode UUID' })
   @ApiResponse({ status: 200, description: 'Episode with generated summary' })
-  generateSummary(@Param('id') id: string) {
-    return this.generateEpisodeSummaryUseCase.execute(id);
+  generateSummary(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    return this.generateEpisodeSummaryUseCase.execute(id, user.id);
   }
 
   @Delete('episodes/:id')
@@ -196,11 +206,14 @@ export class EpisodesController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete episode' })
-  async remove(@Param('id') id: string) {
-    await this.deleteEpisodeUseCase.execute(id);
+  async remove(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    await this.deleteEpisodeUseCase.execute(id, user.id);
   }
 
-  // ── Private fire-and-forget helpers ──────────────────────────────────────
+  // -- Private fire-and-forget helpers --
 
   private triggerEmbedding(episodeId: string, episodeTitle: string): void {
     this.chunkAndEmbedUseCase
@@ -214,7 +227,7 @@ export class EpisodesController {
       });
   }
 
-  //  Conversation History 
+  //  Conversation History
 
   @Get('episodes/:id/conversation')
   @UseGuards(JwtAuthGuard)
@@ -262,9 +275,13 @@ export class EpisodesController {
     await this.clearConversationUseCase.execute(episodeId, user.id);
   }
 
-  private triggerSummaryGeneration(episodeId: string, episodeTitle: string): void {
+  private triggerSummaryGeneration(
+    episodeId: string,
+    episodeTitle: string,
+    userId: string,
+  ): void {
     this.generateEpisodeSummaryUseCase
-      .execute(episodeId)
+      .execute(episodeId, userId)
       .then(() => {
         this.logger.log('Generated summary for episode: ' + episodeTitle);
       })

@@ -1,8 +1,13 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IEpisodeRepository } from '../../../domain/repositories/episode.repository.interface.js';
 import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
+import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import { EpisodeEntity } from '../../../domain/entities/episode.entity.js';
-import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
+import {
+  DomainNotFoundError,
+  DomainForbiddenError,
+} from '../../../domain/errors/domain-errors.js';
 
 export interface CreateEpisodeInput {
   title: string;
@@ -28,12 +33,23 @@ export class CreateEpisodeUseCase {
   constructor(
     @Inject(EPISODE_REPOSITORY)
     private readonly episodeRepo: IEpisodeRepository,
+    @Inject(NOVEL_REPOSITORY)
+    private readonly novelRepo: INovelRepository,
   ) {}
 
   async execute(
     novelId: string,
+    userId: string,
     input: CreateEpisodeInput,
   ): Promise<EpisodeEntity> {
+    const novel = await this.novelRepo.findById(novelId);
+    if (!novel) {
+      throw new DomainNotFoundError('นิยาย', novelId);
+    }
+    if (!novel.isOwnedBy(userId)) {
+      throw new DomainForbiddenError('คุณไม่มีสิทธิ์เพิ่มตอนในนิยายนี้');
+    }
+
     let order = input.order;
     if (!order) {
       const lastOrder = await this.episodeRepo.findLastOrderByNovelId(novelId);
