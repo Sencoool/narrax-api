@@ -1,15 +1,12 @@
-import {
-  Body,
-  Controller,
-  Logger,
-  Post,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Logger, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { UserModelsService } from '../user-models/user-models.service';
+import { decryptApiKey } from '../common/crypto.util';
 import {
   MAX_TARGET_CHARS,
   StreamGenerationDto,
@@ -28,10 +25,12 @@ export class StoryGenerationStreamController {
   constructor(
     private readonly streamStoryGenerationUseCase: StreamStoryGenerationUseCase,
     private readonly prisma: PrismaService,
+    private readonly userModelsService: UserModelsService,
   ) {}
 
   @Post('stream')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'AI เขียนนิยายแบบ streaming (SSE) — unified',
@@ -54,6 +53,7 @@ export class StoryGenerationStreamController {
 - \`error\`: { message } — เกิดข้อผิดพลาด`,
   })
   async streamGeneration(
+    @CurrentUser() user: { id: string },
     @Body() body: StreamGenerationDto,
     @Res() res: Response,
   ): Promise<void> {
@@ -63,18 +63,50 @@ export class StoryGenerationStreamController {
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
+    // ── SSE write callback ───────────────────────────────────────────────────
+    const onEvent = (event: StreamEvent) => {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+    };
+
+    // ── Check active model configuration ─────────────────────────────────────
+    const defaultModel = await this.userModelsService.getDefaultForUser(
+      user.id,
+    );
+    if (!defaultModel) {
+      onEvent({
+        type: 'error',
+        message:
+          'No AI model configured. Please go to Settings to configure your AI model before generating.',
+      });
+      res.end();
+      return;
+    }
+
+    const rawApiKey = defaultModel.apiKey
+      ? decryptApiKey(defaultModel.apiKey)
+      : undefined;
+    const modelConfig = {
+      provider: defaultModel.provider,
+      modelName: defaultModel.modelName,
+      apiKey: rawApiKey,
+      baseUrl: defaultModel.baseUrl,
+    };
+
     const abortController = new AbortController();
 
-    // Kill Ollama the instant the HTTP client disconnects
+    // Abort generation the instant the HTTP client disconnects
     res.on('close', () => {
       if (!abortController.signal.aborted) {
-        this.logger.log('Client disconnected — aborting Ollama generation');
+        this.logger.log(
+          `Client disconnected — aborting ${defaultModel.provider} generation`,
+        );
         abortController.abort();
       }
     });
 
     // ── Persistence callbacks ────────────────────────────────────────────────
-    // The use case doesn't know about Prisma — we inject the DB logic via closures.
     const persistence: StoryPersistence = {
       createRequest: (data) =>
         this.prisma.storyGenerationRequest.create({
@@ -83,8 +115,8 @@ export class StoryGenerationStreamController {
             sourceEpisodeId: data.sourceEpisodeId,
             prompt: data.prompt,
             status: 'processing',
-            provider: 'ollama',
-            model: 'my-novel-model',
+            provider: defaultModel.provider,
+            model: defaultModel.modelName,
             temperature: data.temperature,
             maxTokens: data.maxTokens,
           },
@@ -102,13 +134,6 @@ export class StoryGenerationStreamController {
       },
     };
 
-    // ── SSE write callback ───────────────────────────────────────────────────
-    const onEvent = (event: StreamEvent) => {
-      if (!res.writableEnded) {
-        res.write(`data: ${JSON.stringify(event)}\n\n`);
-      }
-    };
-
     // ── Run the use case ─────────────────────────────────────────────────────
     this.streamStoryGenerationUseCase
       .execute(
@@ -117,9 +142,11 @@ export class StoryGenerationStreamController {
           episodeId: body.episodeId,
           userMessage: body.userMessage,
           currentContent: body.currentContent,
+          conversationHistory: body.conversationHistory,
           targetChars: body.targetChars,
           temperature: body.temperature,
           signal: abortController.signal,
+          modelConfig,
         },
         onEvent,
         persistence,

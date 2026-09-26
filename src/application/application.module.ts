@@ -1,18 +1,18 @@
 import { Module } from '@nestjs/common';
 import { InfrastructureModule } from '../infrastructure/infrastructure.module.js';
 
-// ── Auth ────────────────────────────────────────────────────────────────────
+// 笏笏 Auth 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 import { RegisterUseCase } from './use-cases/auth/register.use-case.js';
 import { LoginUseCase } from './use-cases/auth/login.use-case.js';
 import { ValidateGoogleUserUseCase } from './use-cases/auth/validate-google-user.use-case.js';
 
-// ── Users ────────────────────────────────────────────────────────────────────
+// 笏笏 Users 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 import { FindAllUsersUseCase } from './use-cases/users/find-all-users.use-case.js';
 import { FindOneUserUseCase } from './use-cases/users/find-one-user.use-case.js';
 import { UpdateUserUseCase } from './use-cases/users/update-user.use-case.js';
 import { DeleteUserUseCase } from './use-cases/users/delete-user.use-case.js';
 
-// ── Novels ───────────────────────────────────────────────────────────────────
+// 笏笏 Novels 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 import { CreateNovelUseCase } from './use-cases/novels/create-novel.use-case.js';
 import { FindNovelsUseCase } from './use-cases/novels/find-novels.use-case.js';
 import { FindOneNovelUseCase } from './use-cases/novels/find-one-novel.use-case.js';
@@ -21,7 +21,7 @@ import { DeleteNovelUseCase } from './use-cases/novels/delete-novel.use-case.js'
 import { FindNovelContextUseCase } from './use-cases/novels/find-novel-context.use-case.js';
 import { UpsertNovelContextUseCase } from './use-cases/novels/upsert-novel-context.use-case.js';
 
-// ── Episodes ─────────────────────────────────────────────────────────────────
+// 笏笏 Episodes 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 import { CreateEpisodeUseCase } from './use-cases/episodes/create-episode.use-case.js';
 import { UploadEpisodeContentUseCase } from './use-cases/episodes/upload-episode-content.use-case.js';
 import { FindEpisodesUseCase } from './use-cases/episodes/find-episodes.use-case.js';
@@ -30,14 +30,22 @@ import { UpdateEpisodeUseCase } from './use-cases/episodes/update-episode.use-ca
 import { DeleteEpisodeUseCase } from './use-cases/episodes/delete-episode.use-case.js';
 import { GenerateEpisodeSummaryUseCase } from './use-cases/episodes/generate-episode-summary.use-case.js';
 
-// ── RAG ──────────────────────────────────────────────────────────────────────
+// 笏€笏€ RAG 笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€笏€
 import { ChunkAndEmbedUseCase } from './use-cases/rag/chunk-and-embed.use-case.js';
 import { BuildRagContextUseCase } from './use-cases/rag/build-rag-context.use-case.js';
 
-// ── Story Generation ─────────────────────────────────────────────────────────
+// -- Conversation History ---------------------------------------------------
+import { EnsureEpisodeOwnershipUseCase } from './use-cases/episodes/ensure-episode-ownership.use-case.js';
+import { GetConversationUseCase } from './use-cases/episodes/get-conversation.use-case.js';
+import { AppendConversationMessageUseCase } from './use-cases/episodes/append-conversation-message.use-case.js';
+import { ClearConversationUseCase } from './use-cases/episodes/clear-conversation.use-case.js';
+
+// -- Story Generation -------------------------------------------------------
 import { StreamStoryGenerationUseCase } from './use-cases/story-generation/stream-story-generation.use-case.js';
+import { MultiProviderStreamService } from '../story-generation/multi-provider-stream.service.js';
 
 const USE_CASES = [
+  MultiProviderStreamService,
   // Auth
   RegisterUseCase,
   LoginUseCase,
@@ -68,6 +76,11 @@ const USE_CASES = [
   BuildRagContextUseCase,
   // Story Generation
   StreamStoryGenerationUseCase,
+  // Conversation
+  EnsureEpisodeOwnershipUseCase,
+  GetConversationUseCase,
+  AppendConversationMessageUseCase,
+  ClearConversationUseCase,
 ];
 
 /**

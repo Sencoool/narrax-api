@@ -35,9 +35,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const status = this.toHttpStatus(exception);
     const message = exception.message;
 
-    this.logger.warn(
-      `[${exception.name}] ${message} → HTTP ${status}`,
-    );
+    this.logger.warn(`[${exception.name}] ${message} → HTTP ${status}`);
 
     response.status(status).json({
       statusCode: status,
@@ -49,7 +47,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
   private toHttpStatus(err: DomainError): number {
     if (err instanceof DomainNotFoundError) return HttpStatus.NOT_FOUND;
     if (err instanceof DomainForbiddenError) return HttpStatus.FORBIDDEN;
-    if (err instanceof DomainValidationError) return HttpStatus.UNPROCESSABLE_ENTITY;
+    if (err instanceof DomainValidationError)
+      return HttpStatus.UNPROCESSABLE_ENTITY;
     if (err instanceof DomainConflictError) return HttpStatus.CONFLICT;
     if (err instanceof DomainUnauthorizedError) return HttpStatus.UNAUTHORIZED;
     // Fallback for unknown DomainError subclasses

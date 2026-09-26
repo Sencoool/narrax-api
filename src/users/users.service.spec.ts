@@ -25,7 +25,9 @@ const mockHasher = {
   verify: jest.fn(),
 };
 
-const makeUser = (overrides: Partial<ConstructorParameters<typeof UserEntity>[0]> = {}) =>
+const makeUser = (
+  overrides: Partial<ConstructorParameters<typeof UserEntity>[0]> = {},
+) =>
   new UserEntity({
     id: 'user-1',
     email: 'test@example.com',
@@ -72,7 +74,10 @@ describe('Auth Use Cases', () => {
 
       expect(mockHasher.hash).toHaveBeenCalledWith('password123');
       expect(mockUserRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'test@example.com', passwordHash: HASHED }),
+        expect.objectContaining({
+          email: 'test@example.com',
+          passwordHash: HASHED,
+        }),
       );
       expect(result).toBe(created);
     });
@@ -81,7 +86,11 @@ describe('Auth Use Cases', () => {
       mockUserRepo.findByEmail.mockResolvedValue(makeUser());
 
       await expect(
-        registerUseCase.execute({ email: 'test@example.com', name: null, password: 'pw' }),
+        registerUseCase.execute({
+          email: 'test@example.com',
+          name: null,
+          password: 'pw',
+        }),
       ).rejects.toBeInstanceOf(DomainConflictError);
     });
   });

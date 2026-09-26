@@ -1,8 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface.js';
-import {
-  USER_REPOSITORY,
-} from '../../../domain/repositories/user.repository.interface.js';
+import { USER_REPOSITORY } from '../../../domain/repositories/user.repository.interface.js';
 import type { CreateUserData } from '../../../domain/repositories/user.repository.interface.js';
 import type { IPasswordHasher } from '../../ports/password-hasher.port.js';
 import { PASSWORD_HASHER } from '../../ports/password-hasher.port.js';
@@ -31,9 +29,7 @@ export class RegisterUseCase {
   async execute(input: RegisterInput): Promise<UserEntity> {
     const existing = await this.userRepo.findByEmail(input.email);
     if (existing) {
-      throw new DomainConflictError(
-        `อีเมล "${input.email}" ถูกใช้งานแล้ว`,
-      );
+      throw new DomainConflictError(`อีเมล "${input.email}" ถูกใช้งานแล้ว`);
     }
 
     const passwordHash = await this.hasher.hash(input.password);

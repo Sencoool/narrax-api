@@ -12,7 +12,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateNovelDto } from './dto/create-novel.dto';
@@ -56,7 +61,7 @@ export class NovelsController {
   @ApiOperation({ summary: 'รายการนิยายทั้งหมด (paginated)' })
   findAll(@Query() query: FindNovelsDto) {
     return this.findNovelsUseCase.execute({
-      status: query.status as any,
+      status: query.status,
       authorId: query.authorId,
       page: query.page,
       limit: query.limit,
@@ -81,7 +86,7 @@ export class NovelsController {
     return this.updateNovelUseCase.execute(id, user.id, {
       title: input.title,
       summary: input.summary,
-      status: input.status as any,
+      status: input.status,
       tags: input.tags,
     });
   }
@@ -118,14 +123,14 @@ export class NovelsController {
   @ApiParam({ name: 'novelId', description: 'Novel UUID' })
   upsertContext(
     @Param('novelId') novelId: string,
+    @CurrentUser() user: { id: string },
     @Body() input: UpsertNovelContextDto,
   ) {
-    // Serialize characters array to JSON string (matches existing API contract)
     const characters = input.characters
       ? JSON.stringify(input.characters)
       : undefined;
 
-    return this.upsertNovelContextUseCase.execute(novelId, {
+    return this.upsertNovelContextUseCase.execute(novelId, user.id, {
       characters,
       worldBuilding: input.worldBuilding,
       plotOutline: input.plotOutline,

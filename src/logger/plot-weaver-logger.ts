@@ -8,10 +8,10 @@ const C = {
   bold: '\x1b[1m',
   dim: '\x1b[2m',
   // levels
-  log: '\x1b[32m',     // green
-  error: '\x1b[31m',   // red
-  warn: '\x1b[33m',    // yellow
-  debug: '\x1b[36m',   // cyan
+  log: '\x1b[32m', // green
+  error: '\x1b[31m', // red
+  warn: '\x1b[33m', // yellow
+  debug: '\x1b[36m', // cyan
   verbose: '\x1b[35m', // magenta
   // meta
   gray: '\x1b[90m',
@@ -110,11 +110,7 @@ export class PlotWeaverLogger implements LoggerService {
 
   // ─── Core output ────────────────────────────────────────────────────────
 
-  private output(
-    level: LogLevel,
-    message: unknown,
-    context?: string,
-  ): void {
+  private output(level: LogLevel, message: unknown, context?: string): void {
     if (!this.enabledLevels.has(level)) return;
 
     const ts = timestamp();

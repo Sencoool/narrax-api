@@ -7,6 +7,7 @@ export const updateEpisodeSchema = z
     content: z.string().min(1).optional(),
     order: z.number().int().positive().optional(),
     isPublished: z.boolean().optional(),
+    cast: z.array(z.string()).optional(),
   })
   .meta({ id: 'UpdateEpisode' });
 

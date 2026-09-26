@@ -29,7 +29,7 @@ export class RagService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-  ) { }
+  ) {}
 
   /**
    * แบ่ง text เป็น chunks โดยพยายามตัดที่ขอบประโยค
@@ -73,7 +73,9 @@ export class RagService {
     this.logger.log(`${SEP}`);
     this.logger.log(`📥 [RAG:embed] START — episode: "${episode.title}"`);
     this.logger.log(`📥 [RAG:embed] episodeId: ${episodeId}`);
-    this.logger.log(`📥 [RAG:embed] content length: ${episode.content.length} chars`);
+    this.logger.log(
+      `📥 [RAG:embed] content length: ${episode.content.length} chars`,
+    );
 
     // ลบ chunks เก่าออกก่อน
     const deleted = await this.prisma.episodeChunk.deleteMany({
@@ -82,7 +84,9 @@ export class RagService {
     this.logger.log(`🗑️  [RAG:embed] deleted ${deleted.count} old chunk(s)`);
 
     const chunks = this.splitIntoChunks(episode.content);
-    this.logger.log(`✂️  [RAG:embed] split into ${chunks.length} chunk(s) (CHUNK_SIZE=${this.CHUNK_SIZE}, OVERLAP=${this.CHUNK_OVERLAP})`);
+    this.logger.log(
+      `✂️  [RAG:embed] split into ${chunks.length} chunk(s) (CHUNK_SIZE=${this.CHUNK_SIZE}, OVERLAP=${this.CHUNK_OVERLAP})`,
+    );
 
     // แสดง preview ของแต่ละ chunk
     chunks.forEach((c, i) => {
@@ -92,10 +96,14 @@ export class RagService {
     // สร้าง embedding ทีละ chunk (Gemini rate limit aware)
     for (let i = 0; i < chunks.length; i++) {
       const chunkText = `[ตอน: ${episode.title}]\n${chunks[i]}`;
-      this.logger.log(`🔢 [RAG:embed] generating embedding for chunk[${i}/${chunks.length - 1}]...`);
+      this.logger.log(
+        `🔢 [RAG:embed] generating embedding for chunk[${i}/${chunks.length - 1}]...`,
+      );
 
       const embedding = await this.aiService.generateEmbedding(chunkText);
-      this.logger.log(`🔢 [RAG:embed] chunk[${i}] → embedding OK (${embedding.length} dims)`);
+      this.logger.log(
+        `🔢 [RAG:embed] chunk[${i}] → embedding OK (${embedding.length} dims)`,
+      );
 
       // บันทึกลง DB ด้วย raw SQL เพราะ Prisma ยังไม่รองรับ vector type โดยตรง
       await this.prisma.$executeRaw`
@@ -114,7 +122,9 @@ export class RagService {
       this.logger.log(`💾 [RAG:embed] chunk[${i}] saved to DB ✅`);
     }
 
-    this.logger.log(`✅ [RAG:embed] DONE — "${episode.title}" → ${chunks.length} chunks embedded & stored`);
+    this.logger.log(
+      `✅ [RAG:embed] DONE — "${episode.title}" → ${chunks.length} chunks embedded & stored`,
+    );
     this.logger.log(`${SEP}`);
   }
 
@@ -131,7 +141,9 @@ export class RagService {
     this.logger.log(`🔎 [RAG:search] ragQuery: "${preview(ragQuery, 150)}"`);
 
     const queryEmbedding = await this.aiService.generateEmbedding(ragQuery);
-    this.logger.log(`🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`);
+    this.logger.log(
+      `🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`,
+    );
 
     const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
@@ -162,7 +174,9 @@ export class RagService {
    * รวม NovelContext (ตัวละคร, โลก, โครงเรื่อง) + relevant chunks
    */
   async buildContext(novelId: string, ragQuery: string): Promise<string> {
-    this.logger.log(`🏗️  [RAG:context] Building context for novelId: ${novelId}`);
+    this.logger.log(
+      `🏗️  [RAG:context] Building context for novelId: ${novelId}`,
+    );
 
     const [novelContext, relevantChunks] = await Promise.all([
       this.prisma.novelContext.findUnique({ where: { novelId } }),
@@ -189,7 +203,9 @@ export class RagService {
         contextParts.push(`## ${label}\n${novelContext[key] as string}`);
       }
     } else {
-      this.logger.warn(`🏗️  [RAG:context] NovelContext NOT found for novelId: ${novelId}`);
+      this.logger.warn(
+        `🏗️  [RAG:context] NovelContext NOT found for novelId: ${novelId}`,
+      );
     }
 
     if (relevantChunks.length > 0) {
@@ -197,15 +213,21 @@ export class RagService {
         `## เนื้อเรื่องที่เกี่ยวข้อง\n${relevantChunks.join('\n\n---\n\n')}`,
       );
     } else {
-      this.logger.warn(`🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes yet`);
+      this.logger.warn(
+        `🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes yet`,
+      );
     }
 
     const result = contextParts.join('\n\n');
 
-    this.logger.log(`🏗️  [RAG:context] Context built — ${result.length} chars total (${contextParts.length} section(s))`);
+    this.logger.log(
+      `🏗️  [RAG:context] Context built — ${result.length} chars total (${contextParts.length} section(s))`,
+    );
 
     if (result.length > 0) {
-      this.logger.verbose(`${SEP}\n[RAG CONTEXT — ${result.length} chars]\n${SEP}\n${result}\n${SEP}`);
+      this.logger.verbose(
+        `${SEP}\n[RAG CONTEXT — ${result.length} chars]\n${SEP}\n${result}\n${SEP}`,
+      );
     }
 
     return result;

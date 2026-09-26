@@ -20,7 +20,7 @@ export class AiService implements OnModuleInit {
   private textModel!: string;
   private embeddingModel!: string;
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
     this.baseUrl =
@@ -92,10 +92,22 @@ export class AiService implements OnModuleInit {
 
     this.logger.log(`${SEP}`);
     this.logger.log(`🌊 [AI:stream] START`);
-    this.logger.log(`🌊 [AI:stream] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`);
-    this.logger.log(`🌊 [AI:stream] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`);
-    logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);
-    logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);
+    this.logger.log(
+      `🌊 [AI:stream] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`,
+    );
+    this.logger.log(
+      `🌊 [AI:stream] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`,
+    );
+    logBlock(
+      this.logger,
+      `SYSTEM PROMPT — ${systemPrompt.length} chars`,
+      systemPrompt,
+    );
+    logBlock(
+      this.logger,
+      `USER MESSAGE — ${userMessage.length} chars`,
+      userMessage,
+    );
 
     const response = await fetch(`${this.baseUrl}/api/generate`, {
       method: 'POST',
@@ -117,7 +129,9 @@ export class AiService implements OnModuleInit {
       throw new Error(`Ollama generate error! status: ${response.status}`);
     }
 
-    this.logger.log(`🌊 [AI:stream] Ollama responded HTTP ${response.status} — streaming tokens...`);
+    this.logger.log(
+      `🌊 [AI:stream] Ollama responded HTTP ${response.status} — streaming tokens...`,
+    );
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -156,7 +170,9 @@ export class AiService implements OnModuleInit {
     } catch (err: unknown) {
       // AbortError is expected when the client disconnects — not a real failure
       if (err instanceof Error && err.name === 'AbortError') {
-        this.logger.log(`🌊 [AI:stream] ABORTED by caller — total output so far: ${totalChars} chars`);
+        this.logger.log(
+          `🌊 [AI:stream] ABORTED by caller — total output so far: ${totalChars} chars`,
+        );
         return;
       }
       throw err;
@@ -184,10 +200,22 @@ export class AiService implements OnModuleInit {
 
     this.logger.log(`${SEP}`);
     this.logger.log(`🤖 [AI:generate] START`);
-    this.logger.log(`🤖 [AI:generate] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`);
-    this.logger.log(`🤖 [AI:generate] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`);
-    logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);
-    logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);
+    this.logger.log(
+      `🤖 [AI:generate] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`,
+    );
+    this.logger.log(
+      `🤖 [AI:generate] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`,
+    );
+    logBlock(
+      this.logger,
+      `SYSTEM PROMPT — ${systemPrompt.length} chars`,
+      systemPrompt,
+    );
+    logBlock(
+      this.logger,
+      `USER MESSAGE — ${userMessage.length} chars`,
+      userMessage,
+    );
     this.logger.log(`🤖 [AI:generate] calling Ollama... (non-streaming)`);
 
     const response = await fetch(`${this.baseUrl}/api/generate`, {
@@ -211,7 +239,9 @@ export class AiService implements OnModuleInit {
 
     const data = (await response.json()) as { response: string };
 
-    this.logger.log(`🤖 [AI:generate] ✅ response received — ${data.response.length} chars`);
+    this.logger.log(
+      `🤖 [AI:generate] ✅ response received — ${data.response.length} chars`,
+    );
     logBlock(
       this.logger,
       `RESPONSE — ${data.response.length} chars`,

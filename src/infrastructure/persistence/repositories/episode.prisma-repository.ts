@@ -35,7 +35,7 @@ export class PrismaEpisodeRepository implements IEpisodeRepository {
       },
     });
 
-    return rows.map((r: typeof rows[number]) => ({
+    return rows.map((r: (typeof rows)[number]) => ({
       id: r.id,
       novelId: r.novelId,
       title: r.title,
@@ -65,6 +65,7 @@ export class PrismaEpisodeRepository implements IEpisodeRepository {
         content: data.content,
         order: data.order,
         isPublished: data.isPublished,
+        cast: data.cast ?? [],
       },
     });
     return EpisodeMapper.toDomain(raw);
@@ -79,6 +80,7 @@ export class PrismaEpisodeRepository implements IEpisodeRepository {
         episodeSummary: data.episodeSummary,
         order: data.order,
         isPublished: data.isPublished,
+        cast: data.cast,
       },
     });
     return EpisodeMapper.toDomain(raw);

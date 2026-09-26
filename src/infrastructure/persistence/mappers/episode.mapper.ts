@@ -14,6 +14,7 @@ export class EpisodeMapper {
       episodeSummary: raw.episodeSummary,
       order: raw.order,
       isPublished: raw.isPublished,
+      cast: raw.cast ?? [],
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

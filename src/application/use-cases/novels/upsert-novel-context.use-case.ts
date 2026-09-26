@@ -3,7 +3,10 @@ import type { INovelRepository } from '../../../domain/repositories/novel.reposi
 import type { UpsertNovelContextData } from '../../../domain/repositories/novel.repository.interface.js';
 import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import type { NovelContextProps } from '../../../domain/entities/novel.entity.js';
-import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
+import {
+  DomainNotFoundError,
+  DomainForbiddenError,
+} from '../../../domain/errors/domain-errors.js';
 
 export interface UpsertNovelContextInput {
   /**
@@ -25,12 +28,15 @@ export class UpsertNovelContextUseCase {
 
   async execute(
     novelId: string,
+    userId: string,
     input: UpsertNovelContextInput,
   ): Promise<NovelContextProps> {
-    // Ensure the novel exists
     const novel = await this.novelRepo.findById(novelId);
     if (!novel) {
       throw new DomainNotFoundError('นิยาย', novelId);
+    }
+    if (!novel.isOwnedBy(userId)) {
+      throw new DomainForbiddenError('คุณไม่มีสิทธิ์แก้ไข context ของนิยายนี้');
     }
 
     const data: UpsertNovelContextData = {

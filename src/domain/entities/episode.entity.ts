@@ -6,6 +6,7 @@ export interface EpisodeProps {
   episodeSummary: string | null;
   order: number;
   isPublished: boolean;
+  cast: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +27,7 @@ export class EpisodeEntity {
   readonly episodeSummary: string | null;
   readonly order: number;
   readonly isPublished: boolean;
+  readonly cast: string[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -37,6 +39,7 @@ export class EpisodeEntity {
     this.episodeSummary = props.episodeSummary;
     this.order = props.order;
     this.isPublished = props.isPublished;
+    this.cast = props.cast ?? [];
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }
@@ -46,7 +49,9 @@ export class EpisodeEntity {
   }
 
   hasSummary(): boolean {
-    return this.episodeSummary !== null && this.episodeSummary.trim().length > 0;
+    return (
+      this.episodeSummary !== null && this.episodeSummary.trim().length > 0
+    );
   }
 
   /**

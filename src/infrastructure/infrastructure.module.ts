@@ -8,6 +8,8 @@ import {
   NOVEL_REPOSITORY,
   EPISODE_REPOSITORY,
   EPISODE_CHUNK_REPOSITORY,
+  CONVERSATION_REPOSITORY,
+  USER_MODEL_CONFIG_REPOSITORY,
 } from '../domain/repositories/index.js';
 import { AI_PROVIDER } from '../application/ports/ai-provider.port.js';
 import { PASSWORD_HASHER } from '../application/ports/password-hasher.port.js';
@@ -18,6 +20,8 @@ import {
   PrismaNovelRepository,
   PrismaEpisodeRepository,
   PrismaEpisodeChunkRepository,
+  PrismaConversationRepository,
+  PrismaUserModelConfigRepository,
 } from './persistence/repositories/index.js';
 import { OllamaAiProvider } from './ai/ollama-ai.provider.js';
 import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
@@ -35,7 +39,7 @@ import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
 @Module({
   imports: [ConfigModule, PrismaModule],
   providers: [
-    // ── Persistence ─────────────────────────────────────────────────────────
+    // -- Persistence -------------------------------------------------------
     {
       provide: USER_REPOSITORY,
       useClass: PrismaUserRepository,
@@ -52,12 +56,20 @@ import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
       provide: EPISODE_CHUNK_REPOSITORY,
       useClass: PrismaEpisodeChunkRepository,
     },
-    // ── AI ──────────────────────────────────────────────────────────────────
+    {
+      provide: CONVERSATION_REPOSITORY,
+      useClass: PrismaConversationRepository,
+    },
+    {
+      provide: USER_MODEL_CONFIG_REPOSITORY,
+      useClass: PrismaUserModelConfigRepository,
+    },
+    // -- AI ----------------------------------------------------------------
     {
       provide: AI_PROVIDER,
       useClass: OllamaAiProvider,
     },
-    // ── Auth ────────────────────────────────────────────────────────────────
+    // -- Auth --------------------------------------------------------------
     {
       provide: PASSWORD_HASHER,
       useClass: Argon2PasswordHasher,
@@ -68,6 +80,8 @@ import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
     NOVEL_REPOSITORY,
     EPISODE_REPOSITORY,
     EPISODE_CHUNK_REPOSITORY,
+    CONVERSATION_REPOSITORY,
+    USER_MODEL_CONFIG_REPOSITORY,
     AI_PROVIDER,
     PASSWORD_HASHER,
   ],

@@ -31,7 +31,7 @@ export class PrismaUserRepository implements IUserRepository {
     const rows = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map(UserMapper.toDomain);
+    return rows.map((row) => UserMapper.toDomain(row));
   }
 
   async create(data: CreateUserData): Promise<UserEntity> {

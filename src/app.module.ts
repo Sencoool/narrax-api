@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller';
 import { ApplicationModule } from './application/application.module';
@@ -10,11 +11,13 @@ import { NovelsModule } from './novels/novels.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StoryGenerationModule } from './story-generation/story-generation.module';
 import { UsersModule } from './users/users.module';
+import { UserModelsModule } from './user-models/user-models.module';
 import { DomainExceptionFilter } from './infrastructure/filters/domain-exception.filter';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     PrismaModule,
     ApplicationModule,
     UsersModule,
@@ -22,6 +25,7 @@ import { DomainExceptionFilter } from './infrastructure/filters/domain-exception
     NovelsModule,
     EpisodesModule,
     StoryGenerationModule,
+    UserModelsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -36,6 +40,10 @@ import { DomainExceptionFilter } from './infrastructure/filters/domain-exception
     {
       provide: APP_INTERCEPTOR,
       useClass: ZodSerializerInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

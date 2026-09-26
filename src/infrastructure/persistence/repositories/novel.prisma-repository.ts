@@ -51,7 +51,7 @@ export class PrismaNovelRepository implements INovelRepository {
     ]);
 
     return {
-      data: rows.map(NovelMapper.toDomain),
+      data: rows.map((row) => NovelMapper.toDomain(row)),
       meta: {
         total,
         page,

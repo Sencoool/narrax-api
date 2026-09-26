@@ -6,7 +6,6 @@ import type {
 } from '@prisma/client';
 import { NovelEntity } from '../../../domain/entities/novel.entity.js';
 import type { NovelContextProps } from '../../../domain/entities/novel.entity.js';
-import type { NovelStatusValue } from '../../../domain/value-objects/novel-status.vo.js';
 
 /** The Prisma shape returned by novel queries that include tags and context. */
 type PrismaNovelWithRelations = PrismaNovel & {
@@ -37,7 +36,7 @@ export class NovelMapper {
       id: raw.id,
       title: raw.title,
       summary: raw.summary,
-      status: raw.status as NovelStatusValue,
+      status: raw.status,
       authorId: raw.authorId,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,

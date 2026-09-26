@@ -1,19 +1,33 @@
-
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
-import type { Application, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { PlotWeaverLogger } from './logger/plot-weaver-logger';
 
 async function bootstrap() {
-  const logger = new PlotWeaverLogger(['log', 'warn', 'error', 'debug', 'verbose']);
+  const logger = new PlotWeaverLogger([
+    'log',
+    'warn',
+    'error',
+    'debug',
+    'verbose',
+  ]);
   const app = await NestFactory.create(AppModule, { logger });
   app.useLogger(logger);
 
-  // CORS สำหรับ frontend
+  // Allowed browser origins -- falls back to FRONTEND_URL, never to '*'
+  const allowedOrigins = (
+    process.env.CORS_ORIGIN ??
+    process.env.FRONTEND_URL ??
+    'http://localhost:5173'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });

@@ -6,6 +6,13 @@ import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.
 import type { IAiProvider } from '../../ports/ai-provider.port.js';
 import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
 
+/** Shape of one entry in NovelContext.characters (stored as a JSON string). */
+interface CastCharacter {
+  name?: string;
+  role?: string;
+  description?: string;
+}
+
 /** The fields from NovelContext that are used to build the AI context string. */
 interface NovelContextFields {
   characters: string | null;
@@ -49,25 +56,39 @@ export class BuildRagContextUseCase {
     novelId: string,
     ragQuery: string,
     topK = this.DEFAULT_TOP_K,
+    cast?: string[],
   ): Promise<BuildRagContextResult> {
-    this.logger.log(`🏗️  [RAG:context] Building context for novelId: ${novelId}`);
+    this.logger.log(
+      `🏗️  [RAG:context] Building context for novelId: ${novelId}`,
+    );
 
-    // Run embedding + context fetch concurrently
-    const [queryEmbedding, novelContext] = await Promise.all([
-      this.ai.generateEmbedding(ragQuery),
-      this.novelRepo.findContext(novelId),
-    ]);
+    // Fetch novel metadata first — it never depends on the embedding provider.
+    const novelContext = await this.novelRepo.findContext(novelId);
 
-    this.logger.log(`🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`);
+    // Embedding is a local-Ollama dependency. If it is unavailable we degrade to
+    // metadata-only context rather than failing the whole generation.
+    let relevantChunks: string[] = [];
+    try {
+      const queryEmbedding = await this.ai.generateEmbedding(ragQuery);
+      this.logger.log(
+        `🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`,
+      );
 
-    const relevantChunks = await this.chunkRepo.findSimilar({
-      novelId,
-      queryEmbedding,
-      topK,
-      distanceThreshold: this.COSINE_DISTANCE_THRESHOLD,
-    });
-
-    this.logger.log(`🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`);
+      relevantChunks = await this.chunkRepo.findSimilar({
+        novelId,
+        queryEmbedding,
+        topK,
+        distanceThreshold: this.COSINE_DISTANCE_THRESHOLD,
+      });
+      this.logger.log(
+        `🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`,
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `🔎 [RAG:search] embedding unavailable, continuing without chunk retrieval: ${message}`,
+      );
+    }
 
     const contextParts: string[] = [];
 
@@ -80,13 +101,36 @@ export class BuildRagContextUseCase {
       ];
 
       for (const [key, label] of sections) {
-        const value = novelContext[key];
+        let value = novelContext[key];
+        if (key === 'characters' && value && cast && cast.length > 0) {
+          try {
+            const parsed = JSON.parse(value) as unknown;
+            if (Array.isArray(parsed)) {
+              const castSet = new Set(cast.map((c) => c.toLowerCase()));
+              const filtered = (parsed as CastCharacter[]).filter(
+                (item) => !!item?.name && castSet.has(item.name.toLowerCase()),
+              );
+              if (filtered.length > 0) {
+                value = filtered
+                  .map(
+                    (c) =>
+                      `- ${c.name}${c.role ? ` (${c.role})` : ''}${c.description ? `: ${c.description}` : ''}`,
+                  )
+                  .join('\n');
+              }
+            }
+          } catch {
+            // Keep original if not JSON array
+          }
+        }
         if (value) {
           contextParts.push(`## ${label}\n${value}`);
         }
       }
     } else {
-      this.logger.warn(`🏗️  [RAG:context] NovelContext NOT found for novelId: ${novelId}`);
+      this.logger.warn(
+        `🏗️  [RAG:context] NovelContext NOT found for novelId: ${novelId}`,
+      );
     }
 
     if (relevantChunks.length > 0) {
@@ -94,11 +138,15 @@ export class BuildRagContextUseCase {
         `## เนื้อเรื่องที่เกี่ยวข้อง\n${relevantChunks.join('\n\n---\n\n')}`,
       );
     } else {
-      this.logger.warn(`🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes`);
+      this.logger.warn(
+        `🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes`,
+      );
     }
 
     const contextString = contextParts.join('\n\n');
-    this.logger.log(`🏗️  [RAG:context] Built — ${contextString.length} chars (${contextParts.length} sections)`);
+    this.logger.log(
+      `🏗️  [RAG:context] Built — ${contextString.length} chars (${contextParts.length} sections)`,
+    );
 
     return {
       contextString,

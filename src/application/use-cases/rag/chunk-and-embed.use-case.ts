@@ -38,7 +38,9 @@ export class ChunkAndEmbedUseCase {
       throw new DomainNotFoundError('ตอน', episodeId);
     }
 
-    this.logger.log(`📥 [RAG:embed] START — episode: "${episode.title}" (${episode.content.length} chars)`);
+    this.logger.log(
+      `📥 [RAG:embed] START — episode: "${episode.title}" (${episode.content.length} chars)`,
+    );
 
     // Delete all previous chunks for this episode
     await this.chunkRepo.deleteByEpisodeId(episodeId);
@@ -51,7 +53,9 @@ export class ChunkAndEmbedUseCase {
       // Prefix chunk with episode title for better semantic context
       const chunkText = `[ตอน: ${episode.title}]\n${chunks[i]}`;
 
-      this.logger.log(`🔢 [RAG:embed] Embedding chunk [${i}/${chunks.length - 1}]...`);
+      this.logger.log(
+        `🔢 [RAG:embed] Embedding chunk [${i}/${chunks.length - 1}]...`,
+      );
       const embedding = await this.ai.generateEmbedding(chunkText);
 
       await this.chunkRepo.createWithEmbedding({
@@ -62,10 +66,14 @@ export class ChunkAndEmbedUseCase {
         embedding,
       });
 
-      this.logger.log(`💾 [RAG:embed] chunk[${i}] saved (${embedding.length} dims)`);
+      this.logger.log(
+        `💾 [RAG:embed] chunk[${i}] saved (${embedding.length} dims)`,
+      );
     }
 
-    this.logger.log(`✅ [RAG:embed] DONE — "${episode.title}" → ${chunks.length} chunks`);
+    this.logger.log(
+      `✅ [RAG:embed] DONE — "${episode.title}" → ${chunks.length} chunks`,
+    );
   }
 
   // ─── Private ──────────────────────────────────────────────────────────────

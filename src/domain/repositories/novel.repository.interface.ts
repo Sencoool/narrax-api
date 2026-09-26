@@ -1,4 +1,7 @@
-import type { NovelEntity, NovelContextProps } from '../entities/novel.entity.js';
+import type {
+  NovelEntity,
+  NovelContextProps,
+} from '../entities/novel.entity.js';
 import type { NovelStatusValue } from '../value-objects/novel-status.vo.js';
 
 export interface CreateNovelData {
@@ -51,7 +54,10 @@ export interface INovelRepository {
 
   // NovelContext sub-operations
   findContext(novelId: string): Promise<NovelContextProps | null>;
-  upsertContext(novelId: string, data: UpsertNovelContextData): Promise<NovelContextProps>;
+  upsertContext(
+    novelId: string,
+    data: UpsertNovelContextData,
+  ): Promise<NovelContextProps>;
 }
 
 /** NestJS DI injection token for INovelRepository. */

@@ -6,6 +6,7 @@ export interface CreateEpisodeData {
   content: string;
   order: number;
   isPublished: boolean;
+  cast?: string[];
 }
 
 export interface UpdateEpisodeData {
@@ -14,6 +15,7 @@ export interface UpdateEpisodeData {
   episodeSummary?: string | null;
   order?: number;
   isPublished?: boolean;
+  cast?: string[];
 }
 
 /** Lightweight summary returned in list endpoints — omits heavy `content` field. */
