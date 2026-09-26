@@ -61,8 +61,8 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
     this.logger.log(`${SEP}`);
     this.logger.log(`🤖 [AI:generate] model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`);
     this.logger.log(`🤖 [AI:generate] systemPrompt: ${systemPrompt.length} chars | userMessage: ${userMessage.length} chars`);
-    logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);
-    logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);
+    // logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);  // REMOVED: do not log manuscript content
+    // logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);  // REMOVED: do not log manuscript content
 
     const response = await fetch(`${this.baseUrl}/api/generate`, {
       method: 'POST',
@@ -82,7 +82,7 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
 
     const data = (await response.json()) as { response: string };
     this.logger.log(`🤖 [AI:generate] ✅ ${data.response.length} chars received`);
-    logBlock(this.logger, `RESPONSE — ${data.response.length} chars`, data.response);
+    // logBlock(this.logger, `RESPONSE — ${data.response.length} chars`, data.response);  // REMOVED: do not log manuscript content
     this.logger.log(`${SEP}`);
 
     return data.response;
@@ -119,8 +119,8 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
 
     this.logger.log(`${SEP}`);
     this.logger.log(`🌊 [AI:stream] START | model: ${this.textModel} | temp: ${temp} | maxTokens: ${maxTokens}`);
-    logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);
-    logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);
+    // logBlock(this.logger, `SYSTEM PROMPT — ${systemPrompt.length} chars`, systemPrompt);  // REMOVED: do not log manuscript content
+    // logBlock(this.logger, `USER MESSAGE — ${userMessage.length} chars`, userMessage);  // REMOVED: do not log manuscript content
 
     const response = await fetch(`${this.baseUrl}/api/generate`, {
       method: 'POST',
@@ -181,6 +181,19 @@ export class OllamaAiProvider implements IAiProvider, OnModuleInit {
       throw err;
     } finally {
       reader.releaseLock();
+    }
+
+    // Flush any trailing fragment that did not end with \n
+    if (buffer.trim()) {
+      try {
+        const parsed = JSON.parse(buffer) as { response?: string };
+        if (parsed.response) {
+          totalChars += parsed.response.length;
+          yield parsed.response;
+        }
+      } catch {
+        this.logger.warn(`Failed to parse final stream chunk: ${buffer}`);
+      }
     }
 
     this.logger.log(`🌊 [AI:stream] DONE — ${totalChars} chars total`);

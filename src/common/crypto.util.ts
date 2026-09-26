@@ -1,10 +1,17 @@
 import * as crypto from 'crypto';
 
 /**
- * Derives a 32-byte key from MODEL_ENCRYPTION_KEY or fallback secret.
+ * Derives a 32-byte key from MODEL_ENCRYPTION_KEY (preferred) or JWT_SECRET.
+ * Throws when neither is configured: silently using a built-in default would
+ * encrypt every stored provider key with a value that is in the source tree.
  */
 function getEncryptionKey(): Buffer {
-  const secret = process.env.MODEL_ENCRYPTION_KEY || process.env.JWT_SECRET || 'plot-weaver-default-model-key-32b';
+  const secret = process.env.MODEL_ENCRYPTION_KEY ?? process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      'MODEL_ENCRYPTION_KEY (or JWT_SECRET) must be set to encrypt provider API keys',
+    );
+  }
   return crypto.createHash('sha256').update(secret).digest();
 }
 

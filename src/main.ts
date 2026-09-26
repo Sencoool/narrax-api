@@ -11,9 +11,18 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger });
   app.useLogger(logger);
 
-  // CORS สำหรับ frontend
+  // Allowed browser origins -- falls back to FRONTEND_URL, never to '*'
+  const allowedOrigins = (
+    process.env.CORS_ORIGIN ??
+    process.env.FRONTEND_URL ??
+    'http://localhost:5173'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });

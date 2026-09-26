@@ -17,6 +17,7 @@ import type { CreateUserModelDto } from './dto/create-user-model.dto.js';
 import type { UpdateUserModelDto } from './dto/update-user-model.dto.js';
 import type { TestUserModelDto } from './dto/test-user-model.dto.js';
 import type { UserModelConfigEntity } from '../domain/entities/user-model-config.entity.js';
+import { assertSafeBaseUrl } from './validate-base-url.js';
 
 export interface SafeUserModelConfig {
   id: string;
@@ -79,6 +80,7 @@ export class UserModelsService {
   }
 
   async create(userId: string, dto: CreateUserModelDto): Promise<SafeUserModelConfig> {
+    assertSafeBaseUrl(dto.baseUrl, dto.provider);
     const encryptedKey = dto.apiKey ? encryptApiKey(dto.apiKey.trim()) : null;
     const created = await this.repo.create({
       userId,
@@ -102,6 +104,7 @@ export class UserModelsService {
       throw new NotFoundException('Model configuration not found');
     }
 
+    assertSafeBaseUrl(dto.baseUrl, dto.provider ?? found.provider);
     const encryptedKey = dto.apiKey ? encryptApiKey(dto.apiKey.trim()) : undefined;
     const updated = await this.repo.update(id, {
       label: dto.label?.trim(),
@@ -160,6 +163,7 @@ export class UserModelsService {
     if (!provider || !modelName) {
       throw new BadRequestException('Provider and model name are required for testing');
     }
+    assertSafeBaseUrl(baseUrl, provider);
 
     const start = Date.now();
     const abortController = new AbortController();
