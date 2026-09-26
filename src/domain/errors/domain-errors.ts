@@ -1,5 +1,5 @@
 /**
- * Domain-level errors for the Plot Weaver application.
+ * Domain-level errors for the Narrax application.
  *
  * These are pure TypeScript classes — no framework dependencies.
  * Infrastructure and presentation layers map these to HTTP status codes.

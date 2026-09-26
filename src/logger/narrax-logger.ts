@@ -64,19 +64,19 @@ class FileWriter {
   private rotate(date: string): void {
     this.stream?.end();
     this.currentDate = date;
-    this.filePath = path.join(this.logsDir, `plot-weaver-${date}.log`);
+    this.filePath = path.join(this.logsDir, `narrax-${date}.log`);
     this.stream = fs.createWriteStream(this.filePath, { flags: 'a' });
   }
 }
 
-// ─── PlotWeaverLogger ─────────────────────────────────────────────────────────
+// ─── NarraxLogger ─────────────────────────────────────────────────────────
 
 /**
  * Custom NestJS LoggerService that writes to:
  * 1. Console — colorized, human-readable
- * 2. logs/plot-weaver-YYYY-MM-DD.log — plain text, daily rotation
+ * 2. logs/narrax-YYYY-MM-DD.log — plain text, daily rotation
  */
-export class PlotWeaverLogger implements LoggerService {
+export class NarraxLogger implements LoggerService {
   private static readonly writer = new FileWriter();
 
   private readonly enabledLevels: Set<LogLevel>;
@@ -134,6 +134,6 @@ export class PlotWeaverLogger implements LoggerService {
 
     // ── File (plain text, no ANSI) ───────────────────────────────────────
     const fileLine = [ts, tag, ctx, msg].filter(Boolean).join(' ');
-    PlotWeaverLogger.writer.write(fileLine);
+    NarraxLogger.writer.write(fileLine);
   }
 }

@@ -3,16 +3,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
-import { PlotWeaverLogger } from './logger/plot-weaver-logger';
+import { NarraxLogger } from './logger/narrax-logger';
 
 async function bootstrap() {
-  const logger = new PlotWeaverLogger([
-    'log',
-    'warn',
-    'error',
-    'debug',
-    'verbose',
-  ]);
+  const logger = new NarraxLogger(['log', 'warn', 'error', 'debug', 'verbose']);
   const app = await NestFactory.create(AppModule, { logger });
   app.useLogger(logger);
 
@@ -36,7 +30,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const config = new DocumentBuilder()
-    .setTitle('Plot-weaver API')
+    .setTitle('Narrax API')
     .setDescription('Backend API สำหรับเว็บแต่งนิยายด้วย AI')
     .setVersion('1.0.0')
     .addBearerAuth()
