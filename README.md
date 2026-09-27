@@ -49,8 +49,9 @@ npm ci                                  # runs `prisma generate` via postinstall
 cp .env.example .env                    # then edit it — see Environment below
 ```
 
-The app **refuses to boot** without `JWT_SECRET` or `MODEL_ENCRYPTION_KEY`. That is deliberate: both
-used to fall back to values committed in the source tree.
+Set `JWT_SECRET` before starting the app. `MODEL_ENCRYPTION_KEY` is recommended for saved provider
+keys; if omitted, key encryption falls back to `JWT_SECRET`. Keep whichever value encrypts keys
+stable, or users will have to re-enter their provider keys.
 
 ```bash
 # start the pgvector database (or point DATABASE_URL at an existing one)
@@ -64,12 +65,12 @@ npm run start:dev                       # http://localhost:3000
 Verify it is alive:
 
 ```bash
-curl -s http://localhost:3000/health    # {"status":"ok","db":"ok"}
-open http://localhost:3000/docs         # Swagger UI, bearer auth ready
+curl http://localhost:3000/health        # {"status":"ok","db":"ok"} when DB is reachable
+# Open http://localhost:3000/docs in a browser for Swagger UI
 ```
 
-Swagger documents every route from the same zod schemas that validate them, so `/docs` cannot drift
-from the DTOs.
+On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`. Swagger at `/docs` is the
+quickest way to inspect the current route methods and request bodies.
 
 ---
 
@@ -101,7 +102,7 @@ silently modify the working tree.
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | for compose | must match `DATABASE_URL` |
 | `JWT_SECRET` | **yes** | no fallback; the app refuses to start without it |
 | `JWT_EXPIRES_IN` | no | default `7d` |
-| `MODEL_ENCRYPTION_KEY` | **yes** | AES-256-GCM key for stored provider API keys. Changing it makes already-stored keys unreadable — affected users re-enter them in Settings |
+| `MODEL_ENCRYPTION_KEY` | recommended | AES-256-GCM key for stored provider API keys; falls back to `JWT_SECRET` if absent. Changing the effective key makes stored keys unreadable |
 | `OLLAMA_BASE_URL` / `OLLAMA_MODEL` / `OLLAMA_EMBEDDING_MODEL` | no | defaults `http://localhost:11434`, `qwen2.5`, `nomic-embed-text` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | for Google sign-in | callback must match the Google console exactly |
 | `FRONTEND_URL` | no | where the Google callback redirects; default `http://localhost:5173` |
@@ -137,7 +138,9 @@ newest 5 per episode. Metadata-only saves (publish, reorder, cast, summary) deli
 
 ## HTTP API
 
-All routes except `/health`, `/auth/register`, `/auth/login` and the Google redirects require
+Published novel and episode read routes also accept anonymous requests. Authors with a bearer token
+can read their own drafts; a stranger requesting unpublished content gets 404. Mutations, private
+context, conversations, revisions, model settings and generation require
 `Authorization: Bearer <token>`.
 
 | Method | Route | Purpose |
@@ -156,6 +159,7 @@ All routes except `/health`, `/auth/register`, `/auth/login` and the Google redi
 | POST | `/novels/:novelId/episodes/upload-content` | import text into an episode |
 | GET | `/novels/:novelId/episodes` | episode list (summaries, no heavy content) |
 | GET / PATCH / DELETE | `/episodes/:id` | read / update / delete |
+| GET / POST | `/episodes/:id/revisions`, `/episodes/:id/revisions/:revisionId/restore` | list recent content snapshots / restore one |
 | POST | `/episodes/:id/generate-summary` | regenerate the episode summary |
 | GET / POST / DELETE | `/episodes/:id/conversation` | AI chat history for the episode |
 | POST | `/story-generations/stream` | **SSE** — stream a generated continuation |
@@ -190,9 +194,10 @@ a token with no `iat` is rejected once a user has ever revoked.
 
 ## The AI pipeline
 
-**Providers.** `MultiProviderStreamService` speaks to Ollama (local), OpenAI, Anthropic and Gemini
-behind one interface. Keys are per user, stored encrypted with AES-256-GCM under `MODEL_ENCRYPTION_KEY`
-and never returned by any endpoint.
+**Providers.** `MultiProviderStreamService` speaks to Ollama (local), OpenAI, Anthropic, Gemini,
+Mistral, and OpenAI-compatible endpoints behind one interface. Keys are per user, stored encrypted
+with AES-256-GCM using `MODEL_ENCRYPTION_KEY` (or `JWT_SECRET` when unset), and never returned by an
+endpoint.
 
 **Streaming contract.** `POST /story-generations/stream` returns `text/event-stream` with
 newline-delimited `data: <json>`. Events: `chunk` (`{ text }`), `segment_start` (`{ segment, total }`),
