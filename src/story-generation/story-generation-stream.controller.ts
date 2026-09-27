@@ -114,6 +114,8 @@ export class StoryGenerationStreamController {
             novelId: data.novelId,
             sourceEpisodeId: data.sourceEpisodeId,
             prompt: data.prompt,
+            systemPrompt: data.systemPrompt,
+            contextSnapshot: data.contextSnapshot as never,
             status: 'processing',
             provider: defaultModel.provider,
             model: defaultModel.modelName,
@@ -129,6 +131,7 @@ export class StoryGenerationStreamController {
             status: data.status,
             output: data.output,
             error: data.error,
+            durationMs: data.durationMs,
           },
         });
       },

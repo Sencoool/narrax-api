@@ -1,6 +1,9 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IEpisodeChunkRepository } from '../../../domain/repositories/episode-chunk.repository.interface.js';
-import { EPISODE_CHUNK_REPOSITORY } from '../../../domain/repositories/episode-chunk.repository.interface.js';
+import {
+  EPISODE_CHUNK_REPOSITORY,
+  type SimilarChunk,
+} from '../../../domain/repositories/episode-chunk.repository.interface.js';
 import type { INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
 import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import type { IAiProvider } from '../../ports/ai-provider.port.js';
@@ -21,11 +24,23 @@ interface NovelContextFields {
   writingStyle: string | null;
 }
 
+export interface ChunkRetrievalSummary {
+  chunkCount: number;
+  /** False when the embedding call failed and retrieval silently degraded. */
+  embeddingAvailable: boolean;
+  /** Which lore sections made it into the context string, in order. */
+  sections: string[];
+  contextChars: number;
+  chunks: SimilarChunk[];
+}
+
 export interface BuildRagContextResult {
   /** The full context string to inject into the system prompt. */
   contextString: string;
   /** The writingStyle value (lifted out separately so the controller can use it directly). */
   writingStyle: string | null;
+  /** What retrieval actually did — the difference between "bad model" and "no context". */
+  retrieval: ChunkRetrievalSummary;
 }
 
 /**
@@ -67,9 +82,11 @@ export class BuildRagContextUseCase {
 
     // Embedding is a local-Ollama dependency. If it is unavailable we degrade to
     // metadata-only context rather than failing the whole generation.
-    let relevantChunks: string[] = [];
+    let relevantChunks: SimilarChunk[] = [];
+    let embeddingAvailable = false;
     try {
       const queryEmbedding = await this.ai.generateEmbedding(ragQuery);
+      embeddingAvailable = true;
       this.logger.log(
         `🔎 [RAG:search] query embedding OK (${queryEmbedding.length} dims)`,
       );
@@ -91,16 +108,17 @@ export class BuildRagContextUseCase {
     }
 
     const contextParts: string[] = [];
+    const sections: string[] = [];
 
     if (novelContext) {
-      const sections: [keyof NovelContextFields, string][] = [
+      const loreSections: [keyof NovelContextFields, string][] = [
         ['characters', 'ตัวละครหลัก'],
         ['worldBuilding', 'ฉากและโลกในเรื่อง'],
         ['plotOutline', 'โครงเรื่องหลัก'],
         ['writingStyle', 'สไตล์การเขียน'],
       ];
 
-      for (const [key, label] of sections) {
+      for (const [key, label] of loreSections) {
         let value = novelContext[key];
         if (key === 'characters' && value && cast && cast.length > 0) {
           try {
@@ -125,6 +143,7 @@ export class BuildRagContextUseCase {
         }
         if (value) {
           contextParts.push(`## ${label}\n${value}`);
+          sections.push(label);
         }
       }
     } else {
@@ -135,8 +154,11 @@ export class BuildRagContextUseCase {
 
     if (relevantChunks.length > 0) {
       contextParts.push(
-        `## เนื้อเรื่องที่เกี่ยวข้อง\n${relevantChunks.join('\n\n---\n\n')}`,
+        `## เนื้อเรื่องที่เกี่ยวข้อง\n${relevantChunks
+          .map((chunk) => chunk.content)
+          .join('\n\n---\n\n')}`,
       );
+      sections.push('เนื้อเรื่องที่เกี่ยวข้อง');
     } else {
       this.logger.warn(
         `🏗️  [RAG:context] No relevant RAG chunks found — novel may not have embedded episodes`,
@@ -151,6 +173,13 @@ export class BuildRagContextUseCase {
     return {
       contextString,
       writingStyle: novelContext?.writingStyle ?? null,
+      retrieval: {
+        chunkCount: relevantChunks.length,
+        embeddingAvailable,
+        sections,
+        contextChars: contextString.length,
+        chunks: relevantChunks,
+      },
     };
   }
 }

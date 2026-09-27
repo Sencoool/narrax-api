@@ -9,7 +9,16 @@ describe('BuildRagContextUseCase', () => {
       writingStyle: 'Lyrical',
     }),
   };
-  const chunkRepo = { findSimilar: jest.fn().mockResolvedValue(['chunk one']) };
+  const chunkRepo = {
+    findSimilar: jest.fn().mockResolvedValue([
+      {
+        content: 'chunk one',
+        episodeId: 'episode-1',
+        episodeTitle: 'Episode 1',
+        distance: 0.2,
+      },
+    ]),
+  };
   const ai = { generateEmbedding: jest.fn().mockResolvedValue([0.1, 0.2]) };
 
   beforeEach(() => jest.clearAllMocks());

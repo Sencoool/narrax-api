@@ -47,6 +47,12 @@ import { ClearConversationUseCase } from './use-cases/episodes/clear-conversatio
 import { StreamStoryGenerationUseCase } from './use-cases/story-generation/stream-story-generation.use-case.js';
 import { MultiProviderStreamService } from '../story-generation/multi-provider-stream.service.js';
 
+import { ListCharacterBoardUseCase } from './use-cases/characters/list-character-board.use-case.js';
+import { SaveCharacterUseCase } from './use-cases/characters/save-character.use-case.js';
+import { DeleteCharacterUseCase } from './use-cases/characters/delete-character.use-case.js';
+import { SaveFactionUseCase } from './use-cases/characters/save-faction.use-case.js';
+import { DeleteFactionUseCase } from './use-cases/characters/delete-faction.use-case.js';
+
 const USE_CASES = [
   MultiProviderStreamService,
   // Auth
@@ -88,6 +94,11 @@ const USE_CASES = [
   GetConversationUseCase,
   AppendConversationMessageUseCase,
   ClearConversationUseCase,
+  ListCharacterBoardUseCase,
+  SaveCharacterUseCase,
+  DeleteCharacterUseCase,
+  SaveFactionUseCase,
+  DeleteFactionUseCase,
 ];
 
 /**

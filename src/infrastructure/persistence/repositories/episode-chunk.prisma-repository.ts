@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service.js';
-import type { IEpisodeChunkRepository } from '../../../domain/repositories/episode-chunk.repository.interface.js';
+import type { IEpisodeChunkRepository, SimilarChunk } from '../../../domain/repositories/episode-chunk.repository.interface.js';
 import { EpisodeChunkEntity } from '../../../domain/entities/episode-chunk.entity.js';
 
 /**
@@ -73,22 +73,39 @@ export class PrismaEpisodeChunkRepository implements IEpisodeChunkRepository {
     queryEmbedding: number[];
     topK: number;
     distanceThreshold: number;
-  }): Promise<string[]> {
+  }): Promise<SimilarChunk[]> {
     const embeddingStr = `[${params.queryEmbedding.join(',')}]`;
 
-    // CTE: compute distances first, then filter by threshold.
-    const results = await this.prisma.$queryRaw<{ content: string }[]>`
+    // CTE: compute distances first, then filter by threshold. The episode title
+    // comes along so a trace can say which episode a chunk was pulled from.
+    const results = await this.prisma.$queryRaw<
+      {
+        content: string;
+        episodeId: string;
+        episodeTitle: string | null;
+        dist: number;
+      }[]
+    >`
       WITH ranked AS (
-        SELECT content, embedding <=> ${embeddingStr}::vector(768) AS dist
-        FROM "EpisodeChunk"
-        WHERE "novelId" = ${params.novelId}
-          AND embedding IS NOT NULL
+        SELECT c.content,
+               c."episodeId",
+               e.title AS "episodeTitle",
+               c.embedding <=> ${embeddingStr}::vector(768) AS dist
+        FROM "EpisodeChunk" c
+        LEFT JOIN "Episode" e ON e.id = c."episodeId"
+        WHERE c."novelId" = ${params.novelId}
+          AND c.embedding IS NOT NULL
         ORDER BY dist
         LIMIT ${params.topK}
       )
-      SELECT content FROM ranked WHERE dist < ${params.distanceThreshold}
+      SELECT content, "episodeId", "episodeTitle", dist FROM ranked WHERE dist < ${params.distanceThreshold}
     `;
 
-    return results.map((r: { content: string }) => r.content);
+    return results.map((row) => ({
+      content: row.content,
+      episodeId: row.episodeId,
+      episodeTitle: row.episodeTitle,
+      distance: Number(row.dist),
+    }));
   }
 }

@@ -1,6 +1,20 @@
 import type { EpisodeChunkEntity } from '../entities/episode-chunk.entity.js';
 
 /**
+ * One chunk returned by a similarity search, with enough provenance to explain
+ * where it came from — the point of the generation trace is to answer "did
+ * retrieval find anything relevant?", and a bare string cannot do that.
+ */
+export interface SimilarChunk {
+  content: string;
+  episodeId: string;
+  /** Title of the episode it came from; null if that episode has since been deleted. */
+  episodeTitle: string | null;
+  /** Cosine distance — smaller is closer. */
+  distance: number;
+}
+
+/**
  * Port (interface) for EpisodeChunk persistence & vector search.
  *
  * The embedding vector itself is handled entirely at the infrastructure layer
@@ -35,7 +49,7 @@ export interface IEpisodeChunkRepository {
     queryEmbedding: number[];
     topK: number;
     distanceThreshold: number;
-  }): Promise<string[]>;
+  }): Promise<SimilarChunk[]>;
 }
 
 /** NestJS DI injection token for IEpisodeChunkRepository. */

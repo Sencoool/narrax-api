@@ -12,6 +12,10 @@ import {
   MultiProviderStreamService,
   type ActiveModelConfig,
 } from '../../../story-generation/multi-provider-stream.service.js';
+import {
+  buildContextSnapshot,
+  type GenerationContextSnapshot,
+} from './generation-record.js';
 
 // ─── Internal constants ──────────────────────────────────────────────────────
 
@@ -110,6 +114,10 @@ export interface StoryPersistence {
     novelId: string;
     sourceEpisodeId: string | null;
     prompt: string;
+    /** The full system prompt, context included — what the model was told. */
+    systemPrompt: string;
+    /** Structured index of the same thing: chunks, sections, history. */
+    contextSnapshot: GenerationContextSnapshot;
     maxTokens: number;
     temperature: number | null;
   }): Promise<{ id: string }>;
@@ -120,8 +128,16 @@ export interface StoryPersistence {
       status: 'completed' | 'failed' | 'canceled';
       output?: string;
       error?: string | null;
+      /** Wall-clock duration of the generation, in milliseconds. */
+      durationMs?: number;
     },
   ): Promise<void>;
+}
+
+/** What the model is about to be told, carried to the persistence callbacks. */
+export interface GenerationTrace {
+  systemPrompt: string;
+  contextSnapshot: GenerationContextSnapshot;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,12 +215,13 @@ export class StreamStoryGenerationUseCase {
       storySoFar.length > 100 ? storySoFar.slice(-1500) : input.userMessage;
 
     // ── 4. Build RAG context ───────────────────────────────────────────────
-    const { contextString, writingStyle } = await this.buildRagContext.execute(
-      input.novelId,
-      ragQuery,
-      undefined,
-      sourceEpisode?.cast,
-    );
+    const { contextString, writingStyle, retrieval } =
+      await this.buildRagContext.execute(
+        input.novelId,
+        ragQuery,
+        undefined,
+        sourceEpisode?.cast,
+      );
 
     this.logger.log(
       `📚 [StoryGen] novel: "${novel.title}" | RAG context: ${contextString.length} chars`,
@@ -222,13 +239,33 @@ export class StreamStoryGenerationUseCase {
       input.conversationHistory,
     );
 
-    // ── 7. Dispatch to correct pipeline ───────────────────────────────────
+    // ── 7. Record what the model is about to be told ──────────────────────
+    // Written before the first provider call, so a crashed generation still
+    // leaves behind the prompt and context that caused it.
+    const trace: GenerationTrace = {
+      systemPrompt,
+      contextSnapshot: buildContextSnapshot({
+        mode,
+        targetChars,
+        contextChars: contextString.length,
+        sections: retrieval.sections,
+        embeddingAvailable: retrieval.embeddingAvailable,
+        chunks: retrieval.chunks,
+        history: input.conversationHistory,
+        ...(mode === 'segmented'
+          ? { segments: Math.ceil(targetChars / SEGMENT_CHARS) }
+          : {}),
+      }),
+    };
+
+    // ── 8. Dispatch to correct pipeline ───────────────────────────────────
     if (mode === 'single-shot') {
       await this.runSingleShot(
         input,
         storySoFar,
         conversationPrefix,
         systemPrompt,
+        trace,
         onEvent,
         persistence,
       );
@@ -239,6 +276,7 @@ export class StreamStoryGenerationUseCase {
         conversationPrefix,
         systemPrompt,
         targetChars,
+        trace,
         onEvent,
         persistence,
       );
@@ -252,6 +290,7 @@ export class StreamStoryGenerationUseCase {
     storySoFar: string,
     conversationPrefix: string,
     systemPrompt: string,
+    trace: GenerationTrace,
     onEvent: StreamEventCallback,
     persistence: StoryPersistence,
   ): Promise<void> {
@@ -268,10 +307,13 @@ export class StreamStoryGenerationUseCase {
       novelId: input.novelId,
       sourceEpisodeId: input.episodeId ?? null,
       prompt: aiPrompt,
+      systemPrompt: trace.systemPrompt,
+      contextSnapshot: trace.contextSnapshot,
       maxTokens: TOKENS_PER_SEGMENT,
       temperature: input.temperature ?? null,
     });
 
+    const startedAt = Date.now();
     let fullOutput = '';
     try {
       const stream = input.modelConfig
@@ -300,6 +342,7 @@ export class StreamStoryGenerationUseCase {
       await persistence.updateRequest(request.id, {
         status: 'completed',
         output: fullOutput,
+        durationMs: Date.now() - startedAt,
       });
 
       this.logger.log(
@@ -320,6 +363,7 @@ export class StreamStoryGenerationUseCase {
       await persistence.updateRequest(request.id, {
         status,
         error: status === 'canceled' ? null : message,
+        durationMs: Date.now() - startedAt,
       });
       this.logger.warn(`⚠️  [StoryGen:single] status=${status} | ${message}`);
       throw err;
@@ -334,6 +378,7 @@ export class StreamStoryGenerationUseCase {
     conversationPrefix: string,
     systemPrompt: string,
     targetChars: number,
+    trace: GenerationTrace,
     onEvent: StreamEventCallback,
     persistence: StoryPersistence,
   ): Promise<void> {
@@ -347,10 +392,13 @@ export class StreamStoryGenerationUseCase {
       novelId: input.novelId,
       sourceEpisodeId: input.episodeId ?? null,
       prompt: input.userMessage,
+      systemPrompt: trace.systemPrompt,
+      contextSnapshot: trace.contextSnapshot,
       maxTokens: TOKENS_PER_SEGMENT * totalSegments,
       temperature: input.temperature ?? null,
     });
 
+    const startedAt = Date.now();
     let fullOutput = '';
     let prevTail = '';
 
@@ -412,6 +460,7 @@ export class StreamStoryGenerationUseCase {
       await persistence.updateRequest(request.id, {
         status: 'completed',
         output: fullOutput,
+        durationMs: Date.now() - startedAt,
       });
 
       this.logger.log(
@@ -431,6 +480,7 @@ export class StreamStoryGenerationUseCase {
       await persistence.updateRequest(request.id, {
         status,
         error: status === 'canceled' ? null : message,
+        durationMs: Date.now() - startedAt,
       });
       this.logger.warn(`⚠️  [StoryGen:seg] status=${status} | ${message}`);
       throw err;

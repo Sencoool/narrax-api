@@ -129,6 +129,8 @@ model Novel {
   generations StoryGenerationRequest[]
   chunks      EpisodeChunk[]
   context     NovelContext?
+  characters  Character[]
+  factions    Faction[]
 }
 
 model Episode {
@@ -248,13 +250,15 @@ model NovelTag {
 model MediaAsset {
   id        String   @id @default(uuid())
   ownerId   String
-  novelId   String?
-  type      MediaType
+  novelId     String?
+  characterId String?
+  type        MediaType
   url       String
   createdAt DateTime @default(now())
 
-  owner     User     @relation(fields: [ownerId], references: [id])
-  novel     Novel?   @relation(fields: [novelId], references: [id])
+  owner     User       @relation(fields: [ownerId], references: [id])
+  novel     Novel?     @relation(fields: [novelId], references: [id])
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
 }
 
 model StoryGenerationRequest {
@@ -362,5 +366,65 @@ model UserModelConfig {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// A person in the story. Promoted out of NovelContext.characters (a JSON blob)
+/// so a character can carry an image, belong to several factions, and stay off
+/// the board until the story introduces them.
+model Character {
+  id                String   @id @default(uuid())
+  novelId           String
+  name              String
+  role              String?
+  description       String?  @db.Text
+  /// Episode.order of the episode that introduces this character. null = known
+  /// from the start. Anything greater than the episode being written is withheld
+  /// from the board AND from the AI prompt, so the model cannot spoil the plot.
+  introducedAtOrder Int?
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  novel    Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  factions CharacterFaction[]
+  media    MediaAsset[]
+
+  @@unique([novelId, name])
+  @@index([novelId, sortOrder])
+}
+
+/// A faction, guild, clan or crew. rcLabel is the season/arc tag the board
+/// groups by, so "Season 1" can hold several factions.
+model Faction {
+  id          String   @id @default(uuid())
+  novelId     String
+  name        String
+  description String?  @db.Text
+  /// Hex colour used for the board column and the character chip.
+  color       String?
+  /// Free-form season/arc label, e.g. "Season 1". Factions sharing one are shown
+  /// side by side.
+  arcLabel    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  novel   Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  members CharacterFaction[]
+
+  @@unique([novelId, name])
+}
+
+/// Membership. A character may belong to several factions.
+model CharacterFaction {
+  characterId String
+  factionId   String
+  /// Optional in-fiction title inside this faction, e.g. "Captain".
+  rank        String?
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  faction   Faction   @relation(fields: [factionId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, factionId])
 }
 
