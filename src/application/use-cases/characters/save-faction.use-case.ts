@@ -5,7 +5,10 @@ import {
   type FactionRecord,
   type SaveFactionData,
 } from '../../../domain/repositories/character.repository.interface.js';
-import { NOVEL_REPOSITORY, type INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import {
+  NOVEL_REPOSITORY,
+  type INovelRepository,
+} from '../../../domain/repositories/novel.repository.interface.js';
 import { DomainForbiddenError } from '../../../domain/errors/domain-errors.js';
 
 export interface SaveFactionInput {
@@ -22,7 +25,8 @@ export interface SaveFactionInput {
 @Injectable()
 export class SaveFactionUseCase {
   constructor(
-    @Inject(CHARACTER_REPOSITORY) private readonly characters: ICharacterRepository,
+    @Inject(CHARACTER_REPOSITORY)
+    private readonly characters: ICharacterRepository,
     @Inject(NOVEL_REPOSITORY) private readonly novels: INovelRepository,
   ) {}
 
@@ -31,6 +35,12 @@ export class SaveFactionUseCase {
     const novel = await this.novels.findById(novelId);
     if (!novel || !novel.isOwnedBy(userId)) {
       throw new DomainForbiddenError('You do not own this novel');
+    }
+    if (data.id) {
+      const board = await this.characters.listBoard(novelId);
+      if (!board.factions.some((faction) => faction.id === data.id)) {
+        throw new DomainForbiddenError('Faction not found in this novel');
+      }
     }
     const factionData: SaveFactionData = { novelId, ...data };
     return this.characters.saveFaction(factionData);

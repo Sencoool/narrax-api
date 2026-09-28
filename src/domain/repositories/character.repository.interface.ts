@@ -7,6 +7,7 @@ export interface CharacterRecord {
   introducedAtOrder: number | null;
   sortOrder: number;
   factionIds: string[];
+  factionMemberships: { factionId: string; rank: string | null }[];
   imageUrl: string | null;
 }
 

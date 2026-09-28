@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { StoryGenerationModule } from './story-generation/story-generation.module';
 import { UsersModule } from './users/users.module';
 import { UserModelsModule } from './user-models/user-models.module';
+import { MediaModule } from './media/media.module.js';
 import { DomainExceptionFilter } from './infrastructure/filters/domain-exception.filter';
 
 @Module({
@@ -26,6 +27,7 @@ import { DomainExceptionFilter } from './infrastructure/filters/domain-exception
     EpisodesModule,
     StoryGenerationModule,
     UserModelsModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [

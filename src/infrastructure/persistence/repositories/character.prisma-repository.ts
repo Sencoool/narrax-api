@@ -27,6 +27,10 @@ function toCharacterRecord(row: {
     introducedAtOrder: row.introducedAtOrder,
     sortOrder: row.sortOrder,
     factionIds: row.factions.map((f) => f.factionId),
+    factionMemberships: row.factions.map((f) => ({
+      factionId: f.factionId,
+      rank: f.rank,
+    })),
     imageUrl: row.media[0]?.url ?? null,
   };
 }
@@ -87,7 +91,16 @@ export class PrismaCharacterRepository implements ICharacterRepository {
   }
 
   async saveCharacter(data: SaveCharacterData): Promise<CharacterRecord> {
-    const { novelId, id, name, role, description, introducedAtOrder, sortOrder, factionIds } = data;
+    const {
+      novelId,
+      id,
+      name,
+      role,
+      description,
+      introducedAtOrder,
+      sortOrder,
+      factionIds,
+    } = data;
 
     const row = await this.prisma.$transaction(async (tx) => {
       const char = await tx.character.upsert({
@@ -113,7 +126,10 @@ export class PrismaCharacterRepository implements ICharacterRepository {
       await tx.characterFaction.deleteMany({ where: { characterId: char.id } });
       if (factionIds.length > 0) {
         await tx.characterFaction.createMany({
-          data: factionIds.map((factionId) => ({ characterId: char.id, factionId })),
+          data: factionIds.map((factionId) => ({
+            characterId: char.id,
+            factionId,
+          })),
         });
       }
 
@@ -137,8 +153,21 @@ export class PrismaCharacterRepository implements ICharacterRepository {
     const { novelId, id, name, description, color, arcLabel, sortOrder } = data;
     const row = await this.prisma.faction.upsert({
       where: id ? { id } : { novelId_name: { novelId, name } },
-      create: { novelId, name, description: description ?? null, color: color ?? null, arcLabel: arcLabel ?? null, sortOrder: sortOrder ?? 0 },
-      update: { name, description: description ?? null, color: color ?? null, arcLabel: arcLabel ?? null, sortOrder: sortOrder ?? 0 },
+      create: {
+        novelId,
+        name,
+        description: description ?? null,
+        color: color ?? null,
+        arcLabel: arcLabel ?? null,
+        sortOrder: sortOrder ?? 0,
+      },
+      update: {
+        name,
+        description: description ?? null,
+        color: color ?? null,
+        arcLabel: arcLabel ?? null,
+        sortOrder: sortOrder ?? 0,
+      },
     });
     return toFactionRecord(row);
   }

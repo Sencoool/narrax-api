@@ -19,6 +19,7 @@ import type { TestUserModelDto } from './dto/test-user-model.dto.js';
 import { getErrorMessage } from '../common/get-error-message.js';
 import type { UserModelConfigEntity } from '../domain/entities/user-model-config.entity.js';
 import { assertSafeBaseUrl } from './validate-base-url.js';
+import { listOllamaModels } from './ollama-models.js';
 
 export interface SafeUserModelConfig {
   id: string;
@@ -46,6 +47,12 @@ export class UserModelsService {
     @Inject(USER_MODEL_CONFIG_REPOSITORY)
     private readonly repo: IUserModelConfigRepository,
   ) {}
+
+  listLocalModels() {
+    return listOllamaModels(
+      process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
+    );
+  }
 
   private toSafeDto(entity: UserModelConfigEntity): SafeUserModelConfig {
     const rawKey = entity.apiKey ? decryptApiKey(entity.apiKey) : '';

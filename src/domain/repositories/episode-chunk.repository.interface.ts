@@ -49,6 +49,8 @@ export interface IEpisodeChunkRepository {
     queryEmbedding: number[];
     topK: number;
     distanceThreshold: number;
+    /** Exclude chunks from later episodes when writing an earlier one. */
+    maxEpisodeOrder?: number;
   }): Promise<SimilarChunk[]>;
 }
 

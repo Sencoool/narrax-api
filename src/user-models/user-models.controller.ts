@@ -26,6 +26,12 @@ import { TestUserModelDto } from './dto/test-user-model.dto.js';
 export class UserModelsController {
   constructor(private readonly service: UserModelsService) {}
 
+  @Get('ollama/models')
+  @ApiOperation({ summary: 'รายการโมเดลที่ติดตั้งใน Ollama เครื่องนี้' })
+  listLocalModels() {
+    return this.service.listLocalModels();
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all model configurations for current user' })
   async list(@CurrentUser() user: { id: string }) {

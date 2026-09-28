@@ -36,6 +36,7 @@ const makeUser = (
     googleId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    tokensValidFrom: null,
     ...overrides,
   });
 

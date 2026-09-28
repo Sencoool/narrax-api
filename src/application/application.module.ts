@@ -45,6 +45,8 @@ import { ClearConversationUseCase } from './use-cases/episodes/clear-conversatio
 
 // -- Story Generation -------------------------------------------------------
 import { StreamStoryGenerationUseCase } from './use-cases/story-generation/stream-story-generation.use-case.js';
+import { SuggestStorylinesUseCase } from './use-cases/story-generation/suggest-storylines.use-case.js';
+import { FindGenerationUseCase } from './use-cases/story-generation/find-generation.use-case.js';
 import { MultiProviderStreamService } from '../story-generation/multi-provider-stream.service.js';
 
 import { ListCharacterBoardUseCase } from './use-cases/characters/list-character-board.use-case.js';
@@ -89,6 +91,8 @@ const USE_CASES = [
   BuildRagContextUseCase,
   // Story Generation
   StreamStoryGenerationUseCase,
+  SuggestStorylinesUseCase,
+  FindGenerationUseCase,
   // Conversation
   EnsureEpisodeOwnershipUseCase,
   GetConversationUseCase,

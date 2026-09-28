@@ -16,6 +16,7 @@ const mockUser = new UserEntity({
   googleId: null,
   createdAt: new Date(),
   updatedAt: new Date(),
+  tokensValidFrom: null,
 });
 
 const findAllMock = { execute: jest.fn() };

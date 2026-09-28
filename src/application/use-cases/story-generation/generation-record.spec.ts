@@ -143,10 +143,11 @@ describe('buildContextSnapshot', () => {
       sections: [],
       embeddingAvailable: true,
       chunks: [],
-    } as const;
+    };
 
     expect(
-      buildContextSnapshot({ ...base, mode: 'segmented', segments: 4 }).segments,
+      buildContextSnapshot({ ...base, mode: 'segmented', segments: 4 })
+        .segments,
     ).toBe(4);
     expect(
       buildContextSnapshot({ ...base, mode: 'single-shot' }).segments,

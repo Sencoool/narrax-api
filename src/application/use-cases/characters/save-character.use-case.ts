@@ -5,8 +5,14 @@ import {
   type CharacterRecord,
   type SaveCharacterData,
 } from '../../../domain/repositories/character.repository.interface.js';
-import { NOVEL_REPOSITORY, type INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
-import { DomainForbiddenError, DomainConflictError } from '../../../domain/errors/domain-errors.js';
+import {
+  NOVEL_REPOSITORY,
+  type INovelRepository,
+} from '../../../domain/repositories/novel.repository.interface.js';
+import {
+  DomainForbiddenError,
+  DomainConflictError,
+} from '../../../domain/errors/domain-errors.js';
 
 export interface SaveCharacterInput {
   novelId: string;
@@ -23,7 +29,8 @@ export interface SaveCharacterInput {
 @Injectable()
 export class SaveCharacterUseCase {
   constructor(
-    @Inject(CHARACTER_REPOSITORY) private readonly characters: ICharacterRepository,
+    @Inject(CHARACTER_REPOSITORY)
+    private readonly characters: ICharacterRepository,
     @Inject(NOVEL_REPOSITORY) private readonly novels: INovelRepository,
   ) {}
 
@@ -35,13 +42,28 @@ export class SaveCharacterUseCase {
       throw new DomainForbiddenError('You do not own this novel');
     }
 
+    const board = await this.characters.listBoard(novelId);
+    if (id && !board.characters.some((character) => character.id === id)) {
+      throw new DomainForbiddenError('Character not found in this novel');
+    }
+
+    const allowedFactionIds = new Set(
+      board.factions.map((faction) => faction.id),
+    );
+    if (
+      rest.factionIds.some((factionId) => !allowedFactionIds.has(factionId))
+    ) {
+      throw new DomainForbiddenError('Faction not found in this novel');
+    }
+
     // Duplicate-name check (case-insensitive, excluding self when updating).
-    const existing = await this.characters.listForNovel(novelId);
-    const duplicate = existing.find(
+    const duplicate = board.characters.find(
       (c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== id,
     );
     if (duplicate) {
-      throw new DomainConflictError(`A character named "${name}" already exists in this novel`);
+      throw new DomainConflictError(
+        `A character named "${name}" already exists in this novel`,
+      );
     }
 
     const data: SaveCharacterData = { novelId, id, name, ...rest };

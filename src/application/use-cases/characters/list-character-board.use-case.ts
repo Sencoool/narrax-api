@@ -4,7 +4,10 @@ import {
   type ICharacterRepository,
   type CharacterBoard,
 } from '../../../domain/repositories/character.repository.interface.js';
-import { NOVEL_REPOSITORY, type INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import {
+  NOVEL_REPOSITORY,
+  type INovelRepository,
+} from '../../../domain/repositories/novel.repository.interface.js';
 import { DomainForbiddenError } from '../../../domain/errors/domain-errors.js';
 
 export interface ListCharacterBoardInput {
@@ -15,7 +18,8 @@ export interface ListCharacterBoardInput {
 @Injectable()
 export class ListCharacterBoardUseCase {
   constructor(
-    @Inject(CHARACTER_REPOSITORY) private readonly characters: ICharacterRepository,
+    @Inject(CHARACTER_REPOSITORY)
+    private readonly characters: ICharacterRepository,
     @Inject(NOVEL_REPOSITORY) private readonly novels: INovelRepository,
   ) {}
 

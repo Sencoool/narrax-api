@@ -37,6 +37,7 @@ enum CommentTargetType {
 enum MediaType {
   cover
   illustration
+  character
 }
 
 enum RoleName {
@@ -258,7 +259,9 @@ model MediaAsset {
 
   owner     User       @relation(fields: [ownerId], references: [id])
   novel     Novel?     @relation(fields: [novelId], references: [id])
-  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+
+  @@index([characterId])
 }
 
 model StoryGenerationRequest {
@@ -427,4 +430,3 @@ model CharacterFaction {
 
   @@id([characterId, factionId])
 }
-

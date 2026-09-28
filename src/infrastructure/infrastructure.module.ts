@@ -13,6 +13,7 @@ import {
 } from '../domain/repositories/index.js';
 import { AI_PROVIDER } from '../application/ports/ai-provider.port.js';
 import { PASSWORD_HASHER } from '../application/ports/password-hasher.port.js';
+import { CHARACTER_REPOSITORY } from '../domain/repositories/character.repository.interface.js';
 
 // Implementations
 import {
@@ -25,6 +26,9 @@ import {
 } from './persistence/repositories/index.js';
 import { OllamaAiProvider } from './ai/ollama-ai.provider.js';
 import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
+import { PrismaCharacterRepository } from './persistence/repositories/character.prisma-repository.js';
+import { STORY_GENERATION_REPOSITORY } from '../domain/repositories/story-generation.repository.interface.js';
+import { PrismaStoryGenerationRepository } from './persistence/repositories/story-generation.prisma-repository.js';
 
 /**
  * InfrastructureModule
@@ -64,6 +68,14 @@ import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
       provide: USER_MODEL_CONFIG_REPOSITORY,
       useClass: PrismaUserModelConfigRepository,
     },
+    {
+      provide: CHARACTER_REPOSITORY,
+      useClass: PrismaCharacterRepository,
+    },
+    {
+      provide: STORY_GENERATION_REPOSITORY,
+      useClass: PrismaStoryGenerationRepository,
+    },
     // -- AI ----------------------------------------------------------------
     {
       provide: AI_PROVIDER,
@@ -82,6 +94,8 @@ import { Argon2PasswordHasher } from './auth/argon2-password-hasher.js';
     EPISODE_CHUNK_REPOSITORY,
     CONVERSATION_REPOSITORY,
     USER_MODEL_CONFIG_REPOSITORY,
+    CHARACTER_REPOSITORY,
+    STORY_GENERATION_REPOSITORY,
     AI_PROVIDER,
     PASSWORD_HASHER,
   ],

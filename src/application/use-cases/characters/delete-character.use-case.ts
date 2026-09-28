@@ -3,7 +3,10 @@ import {
   CHARACTER_REPOSITORY,
   type ICharacterRepository,
 } from '../../../domain/repositories/character.repository.interface.js';
-import { NOVEL_REPOSITORY, type INovelRepository } from '../../../domain/repositories/novel.repository.interface.js';
+import {
+  NOVEL_REPOSITORY,
+  type INovelRepository,
+} from '../../../domain/repositories/novel.repository.interface.js';
 import { DomainForbiddenError } from '../../../domain/errors/domain-errors.js';
 
 export interface DeleteCharacterInput {
@@ -15,7 +18,8 @@ export interface DeleteCharacterInput {
 @Injectable()
 export class DeleteCharacterUseCase {
   constructor(
-    @Inject(CHARACTER_REPOSITORY) private readonly characters: ICharacterRepository,
+    @Inject(CHARACTER_REPOSITORY)
+    private readonly characters: ICharacterRepository,
     @Inject(NOVEL_REPOSITORY) private readonly novels: INovelRepository,
   ) {}
 

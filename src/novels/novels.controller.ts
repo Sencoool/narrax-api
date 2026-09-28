@@ -33,6 +33,14 @@ import { DeleteNovelUseCase } from '../application/use-cases/novels/delete-novel
 import { FindNovelContextUseCase } from '../application/use-cases/novels/find-novel-context.use-case';
 import { UpsertNovelContextUseCase } from '../application/use-cases/novels/upsert-novel-context.use-case';
 
+import { ListCharacterBoardUseCase } from '../application/use-cases/characters/list-character-board.use-case.js';
+import { SaveCharacterUseCase } from '../application/use-cases/characters/save-character.use-case.js';
+import { DeleteCharacterUseCase } from '../application/use-cases/characters/delete-character.use-case.js';
+import { SaveFactionUseCase } from '../application/use-cases/characters/save-faction.use-case.js';
+import { DeleteFactionUseCase } from '../application/use-cases/characters/delete-faction.use-case.js';
+import { SaveCharacterDto } from './dto/save-character.dto.js';
+import { SaveFactionDto } from './dto/save-faction.dto.js';
+
 @ApiTags('novels')
 @Controller('novels')
 export class NovelsController {
@@ -44,6 +52,11 @@ export class NovelsController {
     private readonly deleteNovelUseCase: DeleteNovelUseCase,
     private readonly findNovelContextUseCase: FindNovelContextUseCase,
     private readonly upsertNovelContextUseCase: UpsertNovelContextUseCase,
+    private readonly listCharacterBoardUseCase: ListCharacterBoardUseCase,
+    private readonly saveCharacterUseCase: SaveCharacterUseCase,
+    private readonly deleteCharacterUseCase: DeleteCharacterUseCase,
+    private readonly saveFactionUseCase: SaveFactionUseCase,
+    private readonly deleteFactionUseCase: DeleteFactionUseCase,
   ) {}
 
   @Post()
@@ -160,6 +173,87 @@ export class NovelsController {
       worldBuilding: input.worldBuilding,
       plotOutline: input.plotOutline,
       writingStyle: input.writingStyle,
+    });
+  }
+
+  // ??? Characters ????????????????????????????????????????????????????????????
+
+  @Get(':novelId/characters')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get character board' })
+  characterBoard(
+    @CurrentUser() user: { id: string },
+    @Param('novelId') novelId: string,
+  ) {
+    return this.listCharacterBoardUseCase.execute({ novelId, userId: user.id });
+  }
+
+  @Post(':novelId/characters')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create or update a character' })
+  saveCharacter(
+    @CurrentUser() user: { id: string },
+    @Param('novelId') novelId: string,
+    @Body() body: SaveCharacterDto,
+  ) {
+    return this.saveCharacterUseCase.execute({
+      novelId,
+      userId: user.id,
+      ...body,
+    });
+  }
+
+  @Delete(':novelId/characters/:characterId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a character' })
+  async deleteCharacter(
+    @CurrentUser() user: { id: string },
+    @Param('novelId') novelId: string,
+    @Param('characterId') characterId: string,
+  ) {
+    await this.deleteCharacterUseCase.execute({
+      novelId,
+      userId: user.id,
+      characterId,
+    });
+  }
+
+  // ??? Factions ??????????????????????????????????????????????????????????????
+
+  @Post(':novelId/factions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create or update a faction' })
+  saveFaction(
+    @CurrentUser() user: { id: string },
+    @Param('novelId') novelId: string,
+    @Body() body: SaveFactionDto,
+  ) {
+    return this.saveFactionUseCase.execute({
+      novelId,
+      userId: user.id,
+      ...body,
+    });
+  }
+
+  @Delete(':novelId/factions/:factionId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a faction' })
+  async deleteFaction(
+    @CurrentUser() user: { id: string },
+    @Param('novelId') novelId: string,
+    @Param('factionId') factionId: string,
+  ) {
+    await this.deleteFactionUseCase.execute({
+      novelId,
+      userId: user.id,
+      factionId,
     });
   }
 }

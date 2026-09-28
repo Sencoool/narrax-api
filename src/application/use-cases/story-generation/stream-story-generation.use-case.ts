@@ -6,7 +6,10 @@ import type { INovelRepository } from '../../../domain/repositories/novel.reposi
 import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import type { IEpisodeRepository } from '../../../domain/repositories/episode.repository.interface.js';
 import { EPISODE_REPOSITORY } from '../../../domain/repositories/episode.repository.interface.js';
-import { DomainNotFoundError } from '../../../domain/errors/domain-errors.js';
+import {
+  DomainForbiddenError,
+  DomainNotFoundError,
+} from '../../../domain/errors/domain-errors.js';
 import type { ConversationTurn } from '../../../story-generation/dto/stream-generation.dto.js';
 import {
   MultiProviderStreamService,
@@ -88,6 +91,7 @@ export type StreamEvent =
 
 export interface StreamStoryGenerationInput {
   novelId: string;
+  userId: string;
   episodeId?: string;
   userMessage: string;
   /** HTML content from the frontend editor (current unsaved state) */
@@ -193,6 +197,9 @@ export class StreamStoryGenerationUseCase {
     if (!novel) {
       throw new DomainNotFoundError('นิยาย', input.novelId);
     }
+    if (!novel.isOwnedBy(input.userId)) {
+      throw new DomainForbiddenError('You do not own this novel');
+    }
 
     // ── 2. Load source episode (optional) ─────────────────────────────────
     const sourceEpisode = input.episodeId
@@ -202,6 +209,13 @@ export class StreamStoryGenerationUseCase {
     if (input.episodeId && !sourceEpisode) {
       throw new DomainNotFoundError('ตอน', input.episodeId);
     }
+    if (sourceEpisode && sourceEpisode.novelId !== input.novelId) {
+      throw new DomainForbiddenError('Episode does not belong to this novel');
+    }
+
+    const episodeOrderBeingWritten = sourceEpisode
+      ? sourceEpisode.order
+      : (await this.episodeRepo.findLastOrderByNovelId(input.novelId)) + 1;
 
     // ── 3. Build story-so-far seed ─────────────────────────────────────────
     // Priority: live editor content > saved episode content > empty
@@ -221,6 +235,7 @@ export class StreamStoryGenerationUseCase {
         ragQuery,
         undefined,
         sourceEpisode?.cast,
+        episodeOrderBeingWritten,
       );
 
     this.logger.log(

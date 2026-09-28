@@ -71,6 +71,9 @@ curl http://localhost:3000/health        # {"status":"ok","db":"ok"} when DB is 
 
 On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp`. Swagger at `/docs` is the
 quickest way to inspect the current route methods and request bodies.
+Compose publishes PostgreSQL on host port `6543` by default (`POSTGRES_PORT` can override it), so
+the sample `DATABASE_URL` uses `localhost:6543`. This avoids Windows port exclusion ranges that can
+prevent Docker from binding `5432` on the host.
 
 ---
 
@@ -86,6 +89,8 @@ quickest way to inspect the current route methods and request bodies.
 | `npm run test` | jest unit tests |
 | `npm run test:e2e` | jest e2e suite (`test/app.e2e-spec.ts`); needs a database |
 | `npm run test:cov` | unit tests with coverage |
+| `npm run check:local` | check API, Ollama, and embedding model availability |
+| `npm run seed:local` | create or reuse a local writer, novel, episode, and Ollama config; requires `SEED_LOCAL_PASSWORD` |
 | `npm run format` | prettier over `src` and `test` |
 | `npx prisma migrate deploy` | apply committed migrations |
 
@@ -98,8 +103,9 @@ silently modify the working tree.
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DATABASE_URL` | yes | `postgresql://user:pass@host:5432/plotweaver` |
+| `DATABASE_URL` | yes | `postgresql://user:pass@localhost:6543/plotweaver` with the default Compose port |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | for compose | must match `DATABASE_URL` |
+| `POSTGRES_PORT` | for compose | host port; defaults to `6543` |
 | `JWT_SECRET` | **yes** | no fallback; the app refuses to start without it |
 | `JWT_EXPIRES_IN` | no | default `7d` |
 | `MODEL_ENCRYPTION_KEY` | recommended | AES-256-GCM key for stored provider API keys; falls back to `JWT_SECRET` if absent. Changing the effective key makes stored keys unreadable |
@@ -129,10 +135,10 @@ select-all-delete used to be unrecoverable. `UpdateEpisodeUseCase` now writes a 
 previous title/content/order/cast whenever an update would actually replace text, and prunes to the
 newest 5 per episode. Metadata-only saves (publish, reorder, cast, summary) deliberately skip it.
 
-**Reserved but not wired.** `Profile`, `Role`, `UserRole`, `Comment`, `Review`, `Follow`, `Bookmark`,
-`MediaAsset` and the `CommentTargetType` / `MediaType` / `RoleName` enums have zero references in
-`src/`. They are kept on purpose as the shape of planned features — see the comment in
-`prisma/schema.prisma`. Admin access is decided by `ADMIN_EMAILS`, not by `Role`/`UserRole`.
+**Reserved but not wired.** `Profile`, `Role`, `UserRole`, `Comment`, `Review`, `Follow`, `Bookmark`
+and the `CommentTargetType` / `RoleName` enums have no feature endpoints. `MediaAsset` and
+`MediaType` are now used for private character images. Admin access is decided by `ADMIN_EMAILS`,
+not by `Role`/`UserRole`.
 
 ---
 
@@ -260,10 +266,24 @@ in `test/`, which needs a database.
 - `NarraxLogger` (`src/logger/narrax-logger.ts`) writes to stdout and to a daily file,
   `logs/narrax-YYYY-MM-DD.log`. Prompt and response bodies are never logged at `verbose` level.
 - Throttling is global at **120 requests / 60s** per client, with a tighter **10 / 60s** on
-  `/story-generations/stream`. The editor autosaves every ~2.5s after a pause (≈24 req/min), so raise
+  `/story-generations/stream` and `/story-generations/suggestions`. The editor autosaves every ~2.5s after a pause (≈24 req/min), so raise
   the global limit before removing the guard if you add more polling.
 
 ---
+
+## Character images
+
+Authenticated writers can upload a PNG, JPEG, or WebP image (up to 5 MB by default) with
+`POST /novels/:novelId/characters/:characterId/image`. `GET /media/:id` requires the owner's bearer
+token. Images are stored under `UPLOAD_DIR/characters` (default `uploads/characters` in the API working
+directory); `MAX_UPLOAD_MB` sets the upload limit. Back up both PostgreSQL and `UPLOAD_DIR`, or image
+records will remain without their files. Use an absolute `UPLOAD_DIR` outside the npm installation
+directory when packaging Narrax for local use.
+
+`POST /story-generations/suggestions` accepts `{ "novelId": "...", "episodeId": "..." }` and returns
+up to three `{ "title", "prompt" }` ideas from the local AI provider. `episodeId` is optional.
+The owner can inspect a saved prompt and context with `GET /story-generations/:id` or list the latest
+20 for an episode with `GET /story-generations?episodeId=<uuid>`.
 
 ## Known gaps
 

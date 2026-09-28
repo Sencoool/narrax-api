@@ -8,6 +8,10 @@ import type { INovelRepository } from '../../../domain/repositories/novel.reposi
 import { NOVEL_REPOSITORY } from '../../../domain/repositories/novel.repository.interface.js';
 import type { IAiProvider } from '../../ports/ai-provider.port.js';
 import { AI_PROVIDER } from '../../ports/ai-provider.port.js';
+import {
+  CHARACTER_REPOSITORY,
+  type ICharacterRepository,
+} from '../../../domain/repositories/character.repository.interface.js';
 
 /** Shape of one entry in NovelContext.characters (stored as a JSON string). */
 interface CastCharacter {
@@ -65,6 +69,8 @@ export class BuildRagContextUseCase {
     private readonly chunkRepo: IEpisodeChunkRepository,
     @Inject(AI_PROVIDER)
     private readonly ai: IAiProvider,
+    @Inject(CHARACTER_REPOSITORY)
+    private readonly characters: ICharacterRepository,
   ) {}
 
   async execute(
@@ -72,6 +78,7 @@ export class BuildRagContextUseCase {
     ragQuery: string,
     topK = this.DEFAULT_TOP_K,
     cast?: string[],
+    episodeOrderBeingWritten = 0,
   ): Promise<BuildRagContextResult> {
     this.logger.log(
       `🏗️  [RAG:context] Building context for novelId: ${novelId}`,
@@ -96,6 +103,7 @@ export class BuildRagContextUseCase {
         queryEmbedding,
         topK,
         distanceThreshold: this.COSINE_DISTANCE_THRESHOLD,
+        maxEpisodeOrder: episodeOrderBeingWritten,
       });
       this.logger.log(
         `🔎 [RAG:search] retrieved ${relevantChunks.length} chunk(s)`,
@@ -110,37 +118,86 @@ export class BuildRagContextUseCase {
     const contextParts: string[] = [];
     const sections: string[] = [];
 
+    const characterBoard = await this.characters.listBoard(novelId);
+    const castSet = cast?.length
+      ? new Set(cast.map((name) => name.toLowerCase()))
+      : null;
+    const visibleCharacters = characterBoard.characters.filter(
+      (character) =>
+        (character.introducedAtOrder === null ||
+          character.introducedAtOrder <= episodeOrderBeingWritten) &&
+        (!castSet || castSet.has(character.name.toLowerCase())),
+    );
+
+    let characterText = visibleCharacters
+      .map(
+        (character) =>
+          `- ${character.name}${character.role ? ` (${character.role})` : ''}${character.description ? `: ${character.description}` : ''}`,
+      )
+      .join('\n');
+
+    // Old novels can still have only the JSON blob; preserve that path until
+    // every installation has applied the backfill migration.
+    if (characterBoard.characters.length === 0 && novelContext?.characters) {
+      try {
+        const parsed = JSON.parse(novelContext.characters) as unknown;
+        if (Array.isArray(parsed)) {
+          characterText = (parsed as CastCharacter[])
+            .filter((character) =>
+              character?.name && castSet
+                ? castSet.has(character.name.toLowerCase())
+                : !!character?.name,
+            )
+            .map(
+              (character) =>
+                `- ${character.name}${character.role ? ` (${character.role})` : ''}${character.description ? `: ${character.description}` : ''}`,
+            )
+            .join('\n');
+        } else if (!castSet) {
+          characterText = novelContext.characters;
+        }
+      } catch {
+        if (!castSet) characterText = novelContext.characters;
+      }
+    }
+
+    if (characterText) {
+      contextParts.push(`## ตัวละครหลัก\n${characterText}`);
+      sections.push('ตัวละครหลัก');
+    }
+
+    if (visibleCharacters.length > 0) {
+      const factionText = characterBoard.factions
+        .map((faction) => {
+          const members = visibleCharacters
+            .filter((character) => character.factionIds.includes(faction.id))
+            .map((character) => {
+              const rank = character.factionMemberships.find(
+                (membership) => membership.factionId === faction.id,
+              )?.rank;
+              return `${character.name}${rank ? ` (${rank})` : ''}`;
+            });
+          return members.length
+            ? `- ${faction.name}: ${members.join(', ')}`
+            : null;
+        })
+        .filter((line): line is string => line !== null)
+        .join('\n');
+      if (factionText) {
+        contextParts.push(`## ฝ่าย\n${factionText}`);
+        sections.push('ฝ่าย');
+      }
+    }
+
     if (novelContext) {
       const loreSections: [keyof NovelContextFields, string][] = [
-        ['characters', 'ตัวละครหลัก'],
         ['worldBuilding', 'ฉากและโลกในเรื่อง'],
         ['plotOutline', 'โครงเรื่องหลัก'],
         ['writingStyle', 'สไตล์การเขียน'],
       ];
 
       for (const [key, label] of loreSections) {
-        let value = novelContext[key];
-        if (key === 'characters' && value && cast && cast.length > 0) {
-          try {
-            const parsed = JSON.parse(value) as unknown;
-            if (Array.isArray(parsed)) {
-              const castSet = new Set(cast.map((c) => c.toLowerCase()));
-              const filtered = (parsed as CastCharacter[]).filter(
-                (item) => !!item?.name && castSet.has(item.name.toLowerCase()),
-              );
-              if (filtered.length > 0) {
-                value = filtered
-                  .map(
-                    (c) =>
-                      `- ${c.name}${c.role ? ` (${c.role})` : ''}${c.description ? `: ${c.description}` : ''}`,
-                  )
-                  .join('\n');
-              }
-            }
-          } catch {
-            // Keep original if not JSON array
-          }
-        }
+        const value = novelContext[key];
         if (value) {
           contextParts.push(`## ${label}\n${value}`);
           sections.push(label);

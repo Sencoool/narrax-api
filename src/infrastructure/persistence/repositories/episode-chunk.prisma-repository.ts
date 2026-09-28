@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service.js';
-import type { IEpisodeChunkRepository, SimilarChunk } from '../../../domain/repositories/episode-chunk.repository.interface.js';
+import type {
+  IEpisodeChunkRepository,
+  SimilarChunk,
+} from '../../../domain/repositories/episode-chunk.repository.interface.js';
 import { EpisodeChunkEntity } from '../../../domain/entities/episode-chunk.entity.js';
 
 /**
@@ -73,8 +76,10 @@ export class PrismaEpisodeChunkRepository implements IEpisodeChunkRepository {
     queryEmbedding: number[];
     topK: number;
     distanceThreshold: number;
+    maxEpisodeOrder?: number;
   }): Promise<SimilarChunk[]> {
     const embeddingStr = `[${params.queryEmbedding.join(',')}]`;
+    const maxEpisodeOrder = params.maxEpisodeOrder ?? null;
 
     // CTE: compute distances first, then filter by threshold. The episode title
     // comes along so a trace can say which episode a chunk was pulled from.
@@ -95,6 +100,7 @@ export class PrismaEpisodeChunkRepository implements IEpisodeChunkRepository {
         LEFT JOIN "Episode" e ON e.id = c."episodeId"
         WHERE c."novelId" = ${params.novelId}
           AND c.embedding IS NOT NULL
+          AND (${maxEpisodeOrder}::integer IS NULL OR e."order" <= ${maxEpisodeOrder})
         ORDER BY dist
         LIMIT ${params.topK}
       )

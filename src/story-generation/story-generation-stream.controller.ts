@@ -1,4 +1,15 @@
-import { Body, Controller, Logger, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Logger,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -12,6 +23,9 @@ import {
   StreamGenerationDto,
 } from './dto/stream-generation.dto';
 import { StreamStoryGenerationUseCase } from '../application/use-cases/story-generation/stream-story-generation.use-case';
+import { SuggestStorylinesUseCase } from '../application/use-cases/story-generation/suggest-storylines.use-case';
+import { SuggestStorylinesDto } from './dto/suggest-storylines.dto';
+import { FindGenerationUseCase } from '../application/use-cases/story-generation/find-generation.use-case';
 import type {
   StreamEvent,
   StoryPersistence,
@@ -24,9 +38,45 @@ export class StoryGenerationStreamController {
 
   constructor(
     private readonly streamStoryGenerationUseCase: StreamStoryGenerationUseCase,
+    private readonly suggestStorylinesUseCase: SuggestStorylinesUseCase,
+    private readonly findGenerationUseCase: FindGenerationUseCase,
     private readonly prisma: PrismaService,
     private readonly userModelsService: UserModelsService,
   ) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List recent generations for an owned episode' })
+  listForEpisode(
+    @CurrentUser() user: { id: string },
+    @Query('episodeId', ParseUUIDPipe) episodeId: string,
+  ) {
+    return this.findGenerationUseCase.listForEpisode(episodeId, user.id);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Inspect a generation prompt and context' })
+  findOne(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.findGenerationUseCase.execute(id, user.id);
+  }
+
+  @Post('suggestions')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'เสนอ 3 แนวทางสำหรับเนื้อเรื่องตอนต่อไป' })
+  suggestions(
+    @CurrentUser() user: { id: string },
+    @Body() body: SuggestStorylinesDto,
+  ) {
+    return this.suggestStorylinesUseCase.execute({ ...body, userId: user.id });
+  }
 
   @Post('stream')
   @UseGuards(JwtAuthGuard)
@@ -142,6 +192,7 @@ export class StoryGenerationStreamController {
       .execute(
         {
           novelId: body.novelId,
+          userId: user.id,
           episodeId: body.episodeId,
           userMessage: body.userMessage,
           currentContent: body.currentContent,
