@@ -10,6 +10,7 @@ export const updateUserModelSchema = z
     apiKey: z.string().optional(),
     baseUrl: z.string().url().optional().or(z.literal('')),
     isDefault: z.boolean().optional(),
+    contextTokens: z.number().int().min(512).max(131072).optional(),
   })
   .meta({ id: 'UpdateUserModel' });
 

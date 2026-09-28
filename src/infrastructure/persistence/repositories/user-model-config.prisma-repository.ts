@@ -69,6 +69,7 @@ export class PrismaUserModelConfigRepository implements IUserModelConfigReposito
         apiKey: data.apiKey,
         baseUrl: data.baseUrl,
         isDefault,
+        contextTokens: data.contextTokens,
       },
     });
 
@@ -86,6 +87,9 @@ export class PrismaUserModelConfigRepository implements IUserModelConfigReposito
         ...(data.modelName !== undefined ? { modelName: data.modelName } : {}),
         ...(data.apiKey !== undefined ? { apiKey: data.apiKey } : {}),
         ...(data.baseUrl !== undefined ? { baseUrl: data.baseUrl } : {}),
+        ...(data.contextTokens !== undefined
+          ? { contextTokens: data.contextTokens }
+          : {}),
       },
     });
     return UserModelConfigMapper.toDomain(updated);

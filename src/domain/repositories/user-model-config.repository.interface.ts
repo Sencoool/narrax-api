@@ -11,6 +11,7 @@ export interface CreateUserModelConfigInput {
   apiKey?: string | null;
   baseUrl?: string | null;
   isDefault?: boolean;
+  contextTokens?: number;
 }
 
 export interface UpdateUserModelConfigInput {
@@ -18,6 +19,7 @@ export interface UpdateUserModelConfigInput {
   modelName?: string;
   apiKey?: string | null;
   baseUrl?: string | null;
+  contextTokens?: number;
 }
 
 export interface IUserModelConfigRepository {

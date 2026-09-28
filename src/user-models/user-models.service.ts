@@ -30,6 +30,7 @@ export interface SafeUserModelConfig {
   maskedApiKey: string;
   baseUrl: string | null;
   isDefault: boolean;
+  contextTokens: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +66,7 @@ export class UserModelsService {
       maskedApiKey: rawKey ? maskApiKey(rawKey) : '',
       baseUrl: entity.baseUrl,
       isDefault: entity.isDefault,
+      contextTokens: entity.contextTokens,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
@@ -79,6 +81,17 @@ export class UserModelsService {
     userId: string,
   ): Promise<UserModelConfigEntity | null> {
     return this.repo.findDefaultForUser(userId);
+  }
+
+  async getOwnedConfig(
+    userId: string,
+    id: string,
+  ): Promise<UserModelConfigEntity> {
+    const found = await this.repo.findById(id);
+    if (!found || found.userId !== userId) {
+      throw new NotFoundException('Model configuration not found');
+    }
+    return found;
   }
 
   async getOne(userId: string, id: string): Promise<SafeUserModelConfig> {
@@ -103,6 +116,7 @@ export class UserModelsService {
       apiKey: encryptedKey,
       baseUrl: dto.baseUrl?.trim() || null,
       isDefault: dto.isDefault,
+      contextTokens: dto.contextTokens,
     });
     return this.toSafeDto(created);
   }
@@ -127,6 +141,7 @@ export class UserModelsService {
       apiKey: encryptedKey,
       baseUrl:
         dto.baseUrl !== undefined ? dto.baseUrl?.trim() || null : undefined,
+      contextTokens: dto.contextTokens,
     });
 
     if (dto.isDefault) {

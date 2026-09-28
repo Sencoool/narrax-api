@@ -19,6 +19,10 @@ import {
   buildContextSnapshot,
   type GenerationContextSnapshot,
 } from './generation-record.js';
+import {
+  DEFAULT_CONTEXT_TOKENS,
+  fitContextBudget,
+} from '../../../common/context-budget.js';
 
 // ─── Internal constants ──────────────────────────────────────────────────────
 
@@ -104,6 +108,8 @@ export interface StreamStoryGenerationInput {
   signal?: AbortSignal;
   /** Active model configuration for dynamic provider streaming */
   modelConfig?: ActiveModelConfig;
+  maxContextTokens?: number;
+  contextTokens?: number;
 }
 
 /** Callback invoked for each SSE event — the controller writes it to the response. */
@@ -242,17 +248,62 @@ export class StreamStoryGenerationUseCase {
       `📚 [StoryGen] novel: "${novel.title}" | RAG context: ${contextString.length} chars`,
     );
 
-    // ── 5. Build system prompt ─────────────────────────────────────────────
-    const systemPrompt = this.buildSystemPrompt(
-      { title: novel.title, summary: novel.summary },
-      contextString,
-      { writingStyle },
+    // ── 5. Fit the actual provider prompts into the selected window ───────
+    const contextTokens =
+      input.maxContextTokens ?? input.contextTokens ?? DEFAULT_CONTEXT_TOKENS;
+    const outputTokens = Math.min(
+      TOKENS_PER_SEGMENT,
+      Math.max(128, Math.floor(contextTokens / 2)),
     );
-
-    // ── 6. Build conversation context prefix ───────────────────────────────
-    const conversationPrefix = this.buildConversationPrefix(
-      input.conversationHistory,
-    );
+    const novelPrompt = { title: novel.title, summary: novel.summary };
+    const sections = contextString ? contextString.split(/\n\n(?=## )/) : [];
+    const budgeted = fitContextBudget({
+      sections,
+      history: (input.conversationHistory ?? []).slice(-10),
+      story: storySoFar,
+      contextTokens,
+      reserveTokens: outputTokens,
+      buildPrompts: (context, history, story) => {
+        const system = this.buildSystemPrompt(novelPrompt, context, {
+          writingStyle,
+        });
+        const prefix = this.buildConversationPrefix(history);
+        const userPrompt =
+          mode === 'single-shot'
+            ? `${prefix}${input.userMessage}${story ? `\n\n---\n## เนื้อเรื่องที่เขียนไปแล้ว (ให้ต่อจากตรงนี้):\n${story}` : ''}`
+            : this.buildSegmentPrompt(
+                prefix + input.userMessage,
+                story,
+                1,
+                2,
+                '',
+              );
+        const laterPrompt =
+          mode === 'segmented'
+            ? this.buildSegmentPrompt(
+                prefix + input.userMessage,
+                story,
+                2,
+                2,
+                'x'.repeat(TAIL_CHARS),
+              )
+            : userPrompt;
+        return [system + userPrompt, system + laterPrompt];
+      },
+    });
+    if (
+      budgeted.droppedHistory ||
+      budgeted.droppedSections ||
+      budgeted.trimmedStoryChars
+    ) {
+      this.logger.warn(
+        `Context trimmed: history ${budgeted.droppedHistory}, sections ${budgeted.droppedSections}, story chars ${budgeted.trimmedStoryChars}`,
+      );
+    }
+    const systemPrompt = this.buildSystemPrompt(novelPrompt, budgeted.context, {
+      writingStyle,
+    });
+    const conversationPrefix = this.buildConversationPrefix(budgeted.history);
 
     // ── 7. Record what the model is about to be told ──────────────────────
     // Written before the first provider call, so a crashed generation still
@@ -262,11 +313,20 @@ export class StreamStoryGenerationUseCase {
       contextSnapshot: buildContextSnapshot({
         mode,
         targetChars,
-        contextChars: contextString.length,
-        sections: retrieval.sections,
+        contextChars: budgeted.context.length,
+        sections: retrieval.sections.slice(
+          0,
+          sections.length - budgeted.droppedSections,
+        ),
         embeddingAvailable: retrieval.embeddingAvailable,
-        chunks: retrieval.chunks,
-        history: input.conversationHistory,
+        chunks: budgeted.context.includes('## เนื้อเรื่องที่เกี่ยวข้อง')
+          ? retrieval.chunks
+          : [],
+        history: budgeted.history,
+        contextTokens,
+        estimatedInputTokens: budgeted.inputTokens,
+        reservedOutputTokens: outputTokens,
+        storyCharsSent: budgeted.story.length,
         ...(mode === 'segmented'
           ? { segments: Math.ceil(targetChars / SEGMENT_CHARS) }
           : {}),
@@ -277,23 +337,25 @@ export class StreamStoryGenerationUseCase {
     if (mode === 'single-shot') {
       await this.runSingleShot(
         input,
-        storySoFar,
+        budgeted.story,
         conversationPrefix,
         systemPrompt,
         trace,
         onEvent,
         persistence,
+        outputTokens,
       );
     } else {
       await this.runSegmented(
         input,
-        storySoFar,
+        budgeted.story,
         conversationPrefix,
         systemPrompt,
         targetChars,
         trace,
         onEvent,
         persistence,
+        outputTokens,
       );
     }
   }
@@ -308,6 +370,7 @@ export class StreamStoryGenerationUseCase {
     trace: GenerationTrace,
     onEvent: StreamEventCallback,
     persistence: StoryPersistence,
+    outputTokens: number,
   ): Promise<void> {
     const storySection = storySoFar
       ? `\n\n---\n## เนื้อเรื่องที่เขียนไปแล้ว (ให้ต่อจากตรงนี้):\n${storySoFar}`
@@ -324,7 +387,7 @@ export class StreamStoryGenerationUseCase {
       prompt: aiPrompt,
       systemPrompt: trace.systemPrompt,
       contextSnapshot: trace.contextSnapshot,
-      maxTokens: TOKENS_PER_SEGMENT,
+      maxTokens: outputTokens,
       temperature: input.temperature ?? null,
     });
 
@@ -338,13 +401,13 @@ export class StreamStoryGenerationUseCase {
             input.modelConfig,
             {
               temperature: input.temperature,
-              maxOutputTokens: TOKENS_PER_SEGMENT,
+              maxOutputTokens: outputTokens,
               ...(input.signal ? { signal: input.signal } : {}),
             },
           )
         : this.ai.stream(systemPrompt, aiPrompt, {
             temperature: input.temperature,
-            maxOutputTokens: TOKENS_PER_SEGMENT,
+            maxOutputTokens: outputTokens,
             ...(input.signal ? { signal: input.signal } : {}),
           });
 
@@ -396,6 +459,7 @@ export class StreamStoryGenerationUseCase {
     trace: GenerationTrace,
     onEvent: StreamEventCallback,
     persistence: StoryPersistence,
+    outputTokens: number,
   ): Promise<void> {
     const totalSegments = Math.ceil(targetChars / SEGMENT_CHARS);
 
@@ -409,7 +473,7 @@ export class StreamStoryGenerationUseCase {
       prompt: input.userMessage,
       systemPrompt: trace.systemPrompt,
       contextSnapshot: trace.contextSnapshot,
-      maxTokens: TOKENS_PER_SEGMENT * totalSegments,
+      maxTokens: outputTokens * totalSegments,
       temperature: input.temperature ?? null,
     });
 
@@ -442,13 +506,13 @@ export class StreamStoryGenerationUseCase {
               input.modelConfig,
               {
                 temperature: input.temperature,
-                maxOutputTokens: TOKENS_PER_SEGMENT,
+                maxOutputTokens: outputTokens,
                 ...(input.signal ? { signal: input.signal } : {}),
               },
             )
           : this.ai.stream(systemPrompt, segmentPrompt, {
               temperature: input.temperature,
-              maxOutputTokens: TOKENS_PER_SEGMENT,
+              maxOutputTokens: outputTokens,
               ...(input.signal ? { signal: input.signal } : {}),
             });
 

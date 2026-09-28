@@ -1,0 +1,1 @@
+ALTER TABLE "UserModelConfig" ADD COLUMN "contextTokens" INTEGER NOT NULL DEFAULT 8192;

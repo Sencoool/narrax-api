@@ -39,6 +39,10 @@ export interface GenerationContextSnapshot {
   };
   /** Only present for a segmented run: how many prompts were sent. */
   segments?: number;
+  contextTokens?: number;
+  estimatedInputTokens?: number;
+  reservedOutputTokens?: number;
+  storyCharsSent?: number;
 }
 
 export interface GenerationRecordInput {
@@ -81,6 +85,10 @@ export function buildContextSnapshot(input: {
   chunks: SimilarChunk[];
   history?: ConversationTurn[];
   segments?: number;
+  contextTokens?: number;
+  estimatedInputTokens?: number;
+  reservedOutputTokens?: number;
+  storyCharsSent?: number;
 }): GenerationContextSnapshot {
   const turns = (input.history ?? []).slice(-MAX_HISTORY_TURNS);
 
@@ -105,5 +113,15 @@ export function buildContextSnapshot(input: {
       })),
     },
     ...(input.segments ? { segments: input.segments } : {}),
+    ...(input.contextTokens ? { contextTokens: input.contextTokens } : {}),
+    ...(input.estimatedInputTokens !== undefined
+      ? { estimatedInputTokens: input.estimatedInputTokens }
+      : {}),
+    ...(input.reservedOutputTokens
+      ? { reservedOutputTokens: input.reservedOutputTokens }
+      : {}),
+    ...(input.storyCharsSent !== undefined
+      ? { storyCharsSent: input.storyCharsSent }
+      : {}),
   };
 }

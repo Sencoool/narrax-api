@@ -44,6 +44,8 @@ export const streamGenerationSchema = z
       .positive('targetChars ต้องเป็นจำนวนบวก')
       .optional(),
     temperature: z.number().min(0).max(2).optional(),
+    maxContextTokens: z.number().int().min(512).max(131072).optional(),
+    modelId: z.string().uuid().optional(),
   })
   .meta({ id: 'StreamGeneration' });
 

@@ -15,6 +15,7 @@ export interface UserModelConfigProps {
   apiKey: string | null;
   baseUrl: string | null;
   isDefault: boolean;
+  contextTokens?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,7 @@ export class UserModelConfigEntity {
   readonly apiKey: string | null;
   readonly baseUrl: string | null;
   readonly isDefault: boolean;
+  readonly contextTokens: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 
@@ -40,6 +42,7 @@ export class UserModelConfigEntity {
     this.apiKey = props.apiKey ?? null;
     this.baseUrl = props.baseUrl ?? null;
     this.isDefault = props.isDefault ?? false;
+    this.contextTokens = props.contextTokens ?? 8192;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }

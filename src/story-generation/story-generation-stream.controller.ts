@@ -121,10 +121,17 @@ export class StoryGenerationStreamController {
     };
 
     // ── Check active model configuration ─────────────────────────────────────
-    const defaultModel = await this.userModelsService.getDefaultForUser(
-      user.id,
-    );
-    if (!defaultModel) {
+    let selectedModel;
+    try {
+      selectedModel = body.modelId
+        ? await this.userModelsService.getOwnedConfig(user.id, body.modelId)
+        : await this.userModelsService.getDefaultForUser(user.id);
+    } catch {
+      onEvent({ type: 'error', message: 'Model configuration not found' });
+      res.end();
+      return;
+    }
+    if (!selectedModel) {
       onEvent({
         type: 'error',
         message:
@@ -134,14 +141,14 @@ export class StoryGenerationStreamController {
       return;
     }
 
-    const rawApiKey = defaultModel.apiKey
-      ? decryptApiKey(defaultModel.apiKey)
+    const rawApiKey = selectedModel.apiKey
+      ? decryptApiKey(selectedModel.apiKey)
       : undefined;
     const modelConfig = {
-      provider: defaultModel.provider,
-      modelName: defaultModel.modelName,
+      provider: selectedModel.provider,
+      modelName: selectedModel.modelName,
       apiKey: rawApiKey,
-      baseUrl: defaultModel.baseUrl,
+      baseUrl: selectedModel.baseUrl,
     };
 
     const abortController = new AbortController();
@@ -150,7 +157,7 @@ export class StoryGenerationStreamController {
     res.on('close', () => {
       if (!abortController.signal.aborted) {
         this.logger.log(
-          `Client disconnected — aborting ${defaultModel.provider} generation`,
+          `Client disconnected — aborting ${selectedModel.provider} generation`,
         );
         abortController.abort();
       }
@@ -167,8 +174,8 @@ export class StoryGenerationStreamController {
             systemPrompt: data.systemPrompt,
             contextSnapshot: data.contextSnapshot as never,
             status: 'processing',
-            provider: defaultModel.provider,
-            model: defaultModel.modelName,
+            provider: selectedModel.provider,
+            model: selectedModel.modelName,
             temperature: data.temperature,
             maxTokens: data.maxTokens,
           },
@@ -199,6 +206,8 @@ export class StoryGenerationStreamController {
           conversationHistory: body.conversationHistory,
           targetChars: body.targetChars,
           temperature: body.temperature,
+          maxContextTokens: body.maxContextTokens,
+          contextTokens: selectedModel.contextTokens,
           signal: abortController.signal,
           modelConfig,
         },

@@ -12,6 +12,7 @@ export class UserModelConfigMapper {
       apiKey: raw.apiKey,
       baseUrl: raw.baseUrl,
       isDefault: raw.isDefault,
+      contextTokens: raw.contextTokens,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });

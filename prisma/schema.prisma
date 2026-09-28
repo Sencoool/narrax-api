@@ -355,6 +355,7 @@ enum ModelProvider {
 }
 
 model UserModelConfig {
+  contextTokens Int      @default(8192)
   id        String        @id @default(uuid())
   userId    String
   label     String
